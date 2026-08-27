@@ -20,10 +20,10 @@
         <span><strong>Kirin Komikku Viewer</strong><small>GitHub Pages · client-side</small></span>
       </button>
       <nav class="topnav" aria-label="Primary navigation">
-        <button class="nav-btn active" data-view="library">Library</button>
-        <button class="nav-btn" data-view="recent">Recently Read</button>
-        <button class="nav-btn" data-view="stats">Statistics</button>
-        <button class="nav-btn" data-view="tools">Backup Tools</button>
+        <button class="nav-btn active" data-view="library"><span class="nav-icon">▦</span><span>Library</span></button>
+        <button class="nav-btn" data-view="recent"><span class="nav-icon">◷</span><span>Recent</span></button>
+        <button class="nav-btn" data-view="stats"><span class="nav-icon">▥</span><span>Stats</span></button>
+        <button class="nav-btn" data-view="tools"><span class="nav-icon">⚙</span><span>Tools</span></button>
       </nav>
       <div class="top-actions">
         <button id="theme-toggle" class="icon-btn" title="Toggle theme" aria-label="Toggle theme">☼</button>
@@ -146,6 +146,21 @@
       <div id="modal-content"></div>
     </article>
   </div>
+
+  <input id="reader-file-input" type="file" accept="image/*,.zip,.cbz" multiple hidden>
+
+  <section id="reader-view" class="reader-view hidden" aria-label="Local manga reader">
+    <header class="reader-topbar">
+      <button id="reader-close" class="reader-btn" aria-label="Close reader">←</button>
+      <div class="reader-heading">
+        <strong id="reader-title">Local Reader</strong>
+        <span id="reader-meta">0 pages</span>
+      </div>
+      <button id="reader-width" class="reader-btn reader-width-btn" title="Toggle page width">↔</button>
+    </header>
+    <div id="reader-empty" class="reader-empty hidden">No readable images were found.</div>
+    <div id="reader-pages" class="reader-pages"></div>
+  </section>
 
   <div id="toast" class="toast hidden"></div>
 </body>
