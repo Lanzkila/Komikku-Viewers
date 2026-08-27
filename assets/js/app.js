@@ -1,15 +1,19 @@
 (() => {
   'use strict';
 
-  const SETTINGS_KEY = 'kirin-komikku-viewer-settings-v12';
+  const SETTINGS_KEY = 'kirin-komikku-viewer-settings-v13';
   const defaultSettings = {
-    theme: 'dark',
+    theme: 'night',
     sort: 'title',
     status: 'all',
     read: 'all',
     viewMode: 'grid',
     cardSize: 'medium',
     pageSize: 30,
+    performanceMode: 'auto',
+    autoLock: 0,
+    presets: [],
+    lastView: 'dashboard',
   };
 
   const state = {
@@ -30,8 +34,13 @@
     compareData: null,
     compareFileName: '',
     diff: null,
-    cache: { health: null, duplicates: null, activity: null },
+    cache: { health: null, duplicates: null, activity: null, searchIndex: null },
     settings: loadSettings(),
+    primaryMeta: null,
+    repairPlan: null,
+    installPrompt: null,
+    lockTimer: null,
+    chapterUi: { search: '', filter: 'all', sort: 'number-desc' },
   };
 
   const $ = (s, root = document) => root.querySelector(s);
@@ -46,12 +55,27 @@
   const statusNames = {0:'Unknown',1:'Ongoing',2:'Completed',3:'Licensed',4:'Publishing finished',5:'Cancelled',6:'On hiatus'};
   const statusLookup = Object.fromEntries(Object.entries(statusNames).map(([k,v]) => [v.toLowerCase(), Number(k)]));
 
+  const TRACKERS = {
+    1:{name:'MyAnimeList',mark:'MAL'}, 2:{name:'AniList',mark:'AL'}, 3:{name:'Kitsu',mark:'K'},
+    4:{name:'Shikimori',mark:'SH'}, 5:{name:'Bangumi',mark:'BG'}, 6:{name:'Komga',mark:'KG'},
+    7:{name:'MangaUpdates',mark:'MU'}, 8:{name:'Kavita',mark:'KV'}, 9:{name:'Suwayomi',mark:'SW'},
+    60:{name:'MangaDex List',mark:'MD'},
+  };
+  const THEMES = {
+    night:{name:'Kirin Night',meta:'#0b0d12'}, light:{name:'Cloud Light',meta:'#f5f7fb'}, amoled:{name:'AMOLED',meta:'#000000'},
+    ocean:{name:'Ocean',meta:'#07131d'}, sakura:{name:'Sakura',meta:'#180e17'}, forest:{name:'Forest',meta:'#08140f'}, sepia:{name:'Sepia',meta:'#f1e6cf'},
+  };
+  const DAY = 86400000;
+
   function loadSettings() {
     try {
-      const raw = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
-      return { ...defaultSettings, ...raw };
+      const current = localStorage.getItem(SETTINGS_KEY);
+      const legacy = localStorage.getItem('kirin-komikku-viewer-settings-v12');
+      const raw = JSON.parse(current || legacy || '{}');
+      if (raw.theme === 'dark') raw.theme = 'night';
+      return { ...defaultSettings, ...raw, presets: Array.isArray(raw.presets) ? raw.presets : [] };
     } catch {
-      return { ...defaultSettings };
+      return { ...defaultSettings, presets: [] };
     }
   }
 
@@ -86,15 +110,22 @@
   }
 
   function updateThemeUi() {
-    const light = document.documentElement.classList.contains('light');
+    const theme = state.settings.theme in THEMES ? state.settings.theme : 'night';
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.classList.toggle('light', ['light','sepia'].includes(theme));
     const btn = $('#theme-toggle');
-    if (btn) btn.textContent = light ? '☾' : '☼';
+    if (btn) {
+      btn.textContent = '◐';
+      btn.title = `Theme · ${THEMES[theme].name}`;
+      btn.setAttribute('aria-label', `Choose theme. Current ${THEMES[theme].name}`);
+    }
     const meta = $('meta[name="theme-color"]');
-    if (meta) meta.content = light ? '#f5f7fb' : '#0b0d12';
+    if (meta) meta.content = THEMES[theme].meta;
+    $$('#theme-grid [data-theme-choice]').forEach(b => b.classList.toggle('active', b.dataset.themeChoice === theme));
   }
 
   function applySavedSettings() {
-    document.documentElement.classList.toggle('light', state.settings.theme === 'light');
+    if (!(state.settings.theme in THEMES)) state.settings.theme = state.settings.theme === 'light' ? 'light' : 'night';
     updateThemeUi();
     state.pageSize = Number(state.settings.pageSize) || 30;
     if ($('#sort-select')) $('#sort-select').value = state.settings.sort || 'title';
@@ -103,6 +134,11 @@
     if ($('#view-mode-select')) $('#view-mode-select').value = state.settings.viewMode || 'grid';
     if ($('#card-size-select')) $('#card-size-select').value = state.settings.cardSize || 'medium';
     if ($('#page-size-select')) $('#page-size-select').value = String(state.pageSize);
+    if ($('#performance-mode-select')) $('#performance-mode-select').value = state.settings.performanceMode || 'auto';
+    if ($('#auto-lock-select')) $('#auto-lock-select').value = String(state.settings.autoLock || 0);
+    applyPerformanceMode();
+    renderSearchPresets();
+    armAutoLock();
   }
 
   async function ensureSchema() {
@@ -142,20 +178,19 @@
 
   async function decodeBackupFile(file, { primary = false } = {}) {
     if (!file) throw new Error('No file selected.');
-    if (primary) {
-      state.debug = [];
-      diag(`Reading ${file.name} · ${formatBytes(file.size)}…`);
-    } else {
-      log(`Comparison: reading ${file.name} · ${formatBytes(file.size)}.`);
-    }
+    if (primary) { state.debug = []; diag(`Reading ${file.name} · ${formatBytes(file.size)}…`); }
+    else log(`Comparison: reading ${file.name} · ${formatBytes(file.size)}.`);
 
     const bytes = new Uint8Array(await file.arrayBuffer());
     const header = [...bytes.slice(0, 8)].map(n => n.toString(16).padStart(2, '0')).join(' ');
     log(`${primary ? 'Primary' : 'Compare'} header: ${header || '(empty)'}`);
     if (!bytes.length) throw new Error('The selected file is empty.');
 
+    const meta = { name:file.name, size:file.size, header, format:'raw protobuf', compressedBytes:bytes.length, decodedBytes:bytes.length };
     if (isJsonBytes(bytes) || file.name.toLowerCase().endsWith('.json')) {
       const text = new TextDecoder().decode(bytes);
+      meta.format = 'JSON'; meta.decodedBytes = bytes.length;
+      if (primary) state.primaryMeta = meta;
       log(`${primary ? 'Primary' : 'Compare'} detected JSON backup.`);
       return normalizeData(JSON.parse(text));
     }
@@ -163,29 +198,19 @@
     const Backup = await ensureSchema();
     let payload = bytes;
     if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+      meta.format = 'GZIP protobuf';
       if (primary) diag('GZIP header detected · decompressing…');
       payload = await gunzip(bytes);
+      meta.decodedBytes = payload.length;
       log(`${primary ? 'Primary' : 'Compare'} GZIP OK · ${formatBytes(payload.length)} protobuf payload.`);
-    } else {
-      log(`${primary ? 'Primary' : 'Compare'} has no GZIP header · decoding as raw protobuf.`);
-    }
+    } else log(`${primary ? 'Primary' : 'Compare'} has no GZIP header · decoding as raw protobuf.`);
 
     if (primary) diag('Decoding Komikku protobuf…');
     let message;
-    try {
-      message = Backup.decode(payload);
-    } catch (error) {
-      throw new Error(`Komikku protobuf decode failed: ${error.message}`);
-    }
-
-    const data = Backup.toObject(message, {
-      longs: String,
-      enums: String,
-      bytes: String,
-      defaults: false,
-      arrays: true,
-      objects: true,
-    });
+    try { message = Backup.decode(payload); }
+    catch (error) { throw new Error(`Komikku protobuf decode failed: ${error.message}`); }
+    const data = Backup.toObject(message, { longs:String, enums:String, bytes:String, defaults:false, arrays:true, objects:true });
+    if (primary) state.primaryMeta = meta;
     log(`${primary ? 'Primary' : 'Compare'} protobuf OK · ${asArray(data.backupManga).length} manga.`);
     return normalizeData(data);
   }
@@ -221,7 +246,7 @@
       state.compareData = null;
       state.compareFileName = '';
       state.diff = null;
-      state.cache = { health: null, duplicates: null, activity: null };
+      state.cache = { health: null, duplicates: null, activity: null, searchIndex: null };
       state.quickFilter = '';
       state.page = 1;
       buildIndexes();
@@ -235,7 +260,10 @@
       applySavedSettings();
       updateQuickChipUi();
       renderDashboard();
-      switchView('dashboard');
+      renderBackupMetadata();
+      applyPerformanceMode();
+      const restoredView = ['dashboard','library','explore','analyze','tools'].includes(state.settings.lastView) ? state.settings.lastView : 'dashboard';
+      switchView(restoredView);
     } catch (error) {
       console.error(error);
       diag(error.message || String(error), true);
@@ -333,6 +361,9 @@
       if (field === 'chapters') return compareNumber(m.chapters.length, raw);
       if (field === 'tracked') return ['1','yes','true'].includes(value) ? m.tracking.length > 0 : m.tracking.length === 0;
       if (field === 'bookmark' || field === 'bookmarked') return ['1','yes','true'].includes(value) ? bookmarkCount(m) > 0 : bookmarkCount(m) === 0;
+      if (field === 'history') return ['1','yes','true'].includes(value) ? hasHistory(m) : !hasHistory(m);
+      if (field === 'cover') return ['1','yes','true'].includes(value) ? Boolean(displayCover(m)) : !displayCover(m);
+      if (field === 'tracker') return m.tracking.some(t => trackerInfo(t.syncId).name.toLowerCase().includes(value));
       return allText.includes(normalizeText(token));
     });
   }
@@ -345,7 +376,10 @@
     if (q === 'bookmarked') return bookmarkCount(m) > 0;
     if (q === 'tracked') return m.tracking.length > 0;
     if (q === 'nocover') return !displayCover(m);
-    if (q === 'nohistory') return !hasHistory(m);
+    if (q === 'nohistory' || q === 'neverread') return !hasHistory(m);
+    if (q === 'long') return m.chapters.length >= 100;
+    if (q === 'completedunread') return (asNum(m.customStatus)||asNum(m.status)) === 2 && unreadCount(m) > 0;
+    if (q === 'uncategorized') return m.categories.length === 0;
     return true;
   }
 
@@ -528,16 +562,30 @@
     $('#source-explorer').innerHTML = rows.length ? rows.map(r=>`<button class="explorer-card" data-source-jump="${esc(r.name)}"><strong>${esc(r.name)}</strong><small>Source ID ${esc(r.id)}</small><div class="explorer-metrics"><span>${r.count} manga</span><span>${r.chapters} chapters</span><span>${r.unread} unread</span></div></button>`).join('') : '<div class="empty-state">No source data.</div>';
   }
 
+  function trackerInfo(id) {
+    const key = Number(id);
+    return TRACKERS[key] || { name:`Tracker ${id ?? 'Unknown'}`, mark:String(id ?? '?') };
+  }
+
+  function trackerDate(v) {
+    const n=asNum(v); if(!n) return '—'; const d=new Date(n); return Number.isNaN(d.getTime())?'—':d.toLocaleDateString();
+  }
+
   function renderTrackerOverview() {
     const trackers = new Map();
     state.data.backupManga.forEach((m,mangaIndex) => m.tracking.forEach(t => {
       const id = String(t.syncId ?? 'unknown');
-      const row = trackers.get(id) || {id,count:0,progress:0,scores:[],entries:[]};
+      const row = trackers.get(id) || {id,count:0,progress:0,scores:[],statuses:new Map(),entries:[]};
       row.count++; row.progress += asNum(t.lastChapterRead); if (asNum(t.score)>0) row.scores.push(asNum(t.score));
+      const st=String(t.status ?? '—'); row.statuses.set(st,(row.statuses.get(st)||0)+1);
       row.entries.push({m,mangaIndex,t}); trackers.set(id,row);
     }));
     const rows = [...trackers.values()].sort((a,b)=>b.count-a.count);
-    $('#tracker-overview').innerHTML = rows.length ? rows.map(r=>{const avg=r.scores.length?(r.scores.reduce((a,b)=>a+b,0)/r.scores.length).toFixed(1):'—';return `<div class="explorer-card"><strong>Tracker ID ${esc(r.id)}</strong><small>${r.count} manga tracked</small><div class="explorer-metrics"><span>Avg score ${avg}</span><span>Total progress ${Math.round(r.progress)}</span></div></div>`}).join('') : '<div class="empty-state">No tracking entries stored in this backup.</div>';
+    $('#tracker-overview').innerHTML = rows.length ? rows.map(r=>{
+      const avg=r.scores.length?(r.scores.reduce((a,b)=>a+b,0)/r.scores.length).toFixed(1):'—'; const info=trackerInfo(r.id);
+      const common=[...r.statuses.entries()].sort((a,b)=>b[1]-a[1])[0];
+      return `<button class="explorer-card tracker-explorer-card" data-tracker-jump="${esc(info.name)}"><span class="tracker-logo">${esc(info.mark)}</span><strong>${esc(info.name)}</strong><small>Tracker ID ${esc(r.id)} · ${r.count.toLocaleString()} manga</small><div class="explorer-metrics"><span>Avg score ${avg}</span><span>Progress ${Math.round(r.progress).toLocaleString()}</span><span>Status ${esc(common?.[0]||'—')}</span></div></button>`
+    }).join('') : '<div class="empty-state">No tracking entries stored in this backup.</div>';
   }
 
   function renderActivity() {
@@ -545,14 +593,59 @@
     $('#activity-timeline').innerHTML = rows.length ? rows.map(r => `<button class="card-hit" data-manga-index="${r.mangaIndex}"><div class="timeline-row">${displayCover(r.manga)?`<img class="timeline-thumb" src="${esc(displayCover(r.manga))}" alt="" referrerpolicy="no-referrer">`:`<div class="timeline-thumb cover-fallback">◇</div>`}<div><strong>${esc(displayTitle(r.manga))}</strong><small>${esc(sourceName(r.manga))}${r.duration?` · ${formatDuration(r.duration)}`:''}</small></div><div><small>${new Date(r.when).toLocaleString()}</small></div></div></button>`).join('') : '<div class="empty-state">No reading activity stored in this backup.</div>';
   }
 
+  function renderGenreExplorer() {
+    const rows=countValues(state.data.backupManga.flatMap(displayGenres));
+    $('#genre-explorer').innerHTML=rows.length?rows.slice(0,250).map(([name,count])=>`<button class="explorer-card" data-search-jump="genre:&quot;${esc(name)}&quot;"><strong>${esc(name)}</strong><small>${count.toLocaleString()} manga</small></button>`).join(''):'<div class="empty-state">No genre data.</div>';
+  }
+
+  function renderCreatorExplorer() {
+    const authors=countValues(state.data.backupManga.map(displayAuthor).filter(Boolean)).slice(0,150);
+    const artists=countValues(state.data.backupManga.map(displayArtist).filter(Boolean)).slice(0,150);
+    const make=(rows,field)=>rows.map(([name,count])=>`<button class="explorer-card" data-search-jump="${field}:&quot;${esc(name)}&quot;"><strong>${esc(name)}</strong><small>${count.toLocaleString()} manga</small></button>`).join('')||'<div class="muted">No data.</div>';
+    $('#author-explorer').innerHTML=make(authors,'author'); $('#artist-explorer').innerHTML=make(artists,'artist');
+  }
+
+  function renderSmartCollections() {
+    const collections=[
+      ['100+ chapters','long','Long-running manga'],['Never read','neverread','No reading history'],['Tracked','tracked','Has tracker entries'],
+      ['Completed + unread','completedunread','Completed but still has unread chapters'],['No cover','nocover','Missing cover URL'],['Uncategorized','uncategorized','No category assigned']
+    ];
+    $('#smart-collections').innerHTML=collections.map(([name,key,sub])=>`<button class="explorer-card" data-smart-jump="${key}"><strong>${name}</strong><small>${sub}</small></button>`).join('');
+    const mangas=[...state.data.backupManga];
+    const top=[...mangas].sort((a,b)=>readCount(b)-readCount(a)).slice(0,10);
+    $('#top-manga').innerHTML=top.map(m=>{const i=state.data.backupManga.indexOf(m);return `<button class="card-hit" data-manga-index="${i}"><div class="recent-row">${displayCover(m)?`<img class="recent-thumb" src="${esc(displayCover(m))}" alt="" loading="lazy" referrerpolicy="no-referrer">`:`<div class="recent-thumb cover-fallback">◇</div>`}<div><strong>${esc(displayTitle(m))}</strong><small>${readCount(m).toLocaleString()} read · ${m.chapters.length.toLocaleString()} chapters</small></div><div><small>${unreadCount(m).toLocaleString()} unread</small></div></div></button>`}).join('')||'<div class="empty-state">No manga.</div>';
+  }
+
+  function renderLibraryGrowth() {
+    const buckets=new Map();
+    state.data.backupManga.forEach(m=>{const n=asNum(m.dateAdded);if(!n)return;const d=new Date(n);if(Number.isNaN(d.getTime()))return;const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;buckets.set(k,(buckets.get(k)||0)+1);});
+    const rows=[...buckets.entries()].sort((a,b)=>a[0].localeCompare(b[0])).slice(-36); const max=Math.max(1,...rows.map(r=>r[1]));
+    $('#library-growth').innerHTML=rows.length?rows.map(([month,count])=>`<div class="growth-bar" title="${month}: ${count}"><i style="height:${Math.max(4,count/max*100)}%"></i><span>${month.slice(2)}</span><b>${count}</b></div>`).join(''):'<div class="empty-state">No date-added data.</div>';
+  }
+
+  function renderHeatmap() {
+    const counts=new Map(); const activity=getActivity();
+    activity.forEach(r=>{const d=new Date(r.when);if(Number.isNaN(d.getTime()))return;const key=[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');counts.set(key,(counts.get(key)||0)+1);});
+    const today=new Date(); today.setHours(0,0,0,0); const cells=[]; let total=0,max=0;
+    for(let i=363;i>=0;i--){const d=new Date(today.getTime()-i*DAY);const key=[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');const c=counts.get(key)||0;total+=c;max=Math.max(max,c);cells.push({key,c});}
+    const level=c=>!c?0:c>=Math.max(1,max*.75)?4:c>=Math.max(1,max*.45)?3:c>=Math.max(1,max*.2)?2:1;
+    $('#reading-heatmap').innerHTML=cells.map(x=>`<span class="heat-cell" data-level="${level(x.c)}" title="${x.key}: ${x.c} reading event${x.c===1?'':'s'}"></span>`).join('');
+    $('#heatmap-summary').textContent=`${total.toLocaleString()} events · peak ${max.toLocaleString()}/day`;
+  }
+
   function switchExploreTab(name) {
     state.exploreTab = name;
     $$('#explore-tabs [data-explore]').forEach(b=>b.classList.toggle('active',b.dataset.explore===name));
-    ['categories','sources','trackers','activity'].forEach(v=>$(`#explore-${v}`).classList.toggle('hidden',v!==name));
+    ['categories','sources','trackers','activity','genres','creators','smart','growth','heatmap'].forEach(v=>$(`#explore-${v}`)?.classList.toggle('hidden',v!==name));
     if (name === 'categories') renderCategoryExplorer();
     if (name === 'sources') renderSourceExplorer();
     if (name === 'trackers') renderTrackerOverview();
     if (name === 'activity') renderActivity();
+    if (name === 'genres') renderGenreExplorer();
+    if (name === 'creators') renderCreatorExplorer();
+    if (name === 'smart') renderSmartCollections();
+    if (name === 'growth') renderLibraryGrowth();
+    if (name === 'heatmap') renderHeatmap();
   }
 
   function renderHealth() {
@@ -613,13 +706,72 @@
     $(selector).innerHTML = shown.length ? shown.map(([name,count])=>`<div class="bar-row"><span title="${esc(name)}">${esc(name)}</span><div class="bar-track"><i style="width:${count/max*100}%"></i></div><b>${count}</b></div>`).join('') : '<div class="muted">No data.</div>';
   }
 
+  function renderStale() {
+    const days=Number($('#stale-days')?.value||180); const cutoff=Date.now()-days*DAY;
+    const rows=state.data.backupManga.map((m,index)=>({m,index,last:lastRead(m)})).filter(x=>!x.last||x.last<cutoff).sort((a,b)=>(a.last||0)-(b.last||0));
+    $('#stale-summary').textContent=`${rows.length.toLocaleString()} manga have no reading history or were last read more than ${days} days ago.`;
+    $('#stale-list').innerHTML=rows.slice(0,300).map(x=>`<button class="duplicate-item card-hit" data-manga-index="${x.index}"><strong>${esc(displayTitle(x.m))}</strong><span class="muted"> · ${x.last?`last read ${new Date(x.last).toLocaleDateString()}`:'never read'} · ${esc(sourceName(x.m))}</span></button>`).join('')||'<div class="empty-state">No stale manga for this threshold.</div>';
+  }
+
+  function sourceHealthRows() {
+    const map=new Map();
+    state.data.backupManga.forEach(m=>{const id=key64(m.source);const r=map.get(id)||{id,name:sourceName(m),count:0,noCover:0,noChapters:0,unread:0,unknown:!state.sourceMap.has(id)};r.count++;r.noCover+=!displayCover(m);r.noChapters+=!m.chapters.length;r.unread+=unreadCount(m);map.set(id,r);});
+    return [...map.values()].sort((a,b)=>b.count-a.count);
+  }
+
+  function renderSourceHealth() {
+    const rows=sourceHealthRows(); const unknown=rows.filter(r=>r.unknown).reduce((n,r)=>n+r.count,0); const empty=rows.filter(r=>r.noChapters).reduce((n,r)=>n+r.noChapters,0);
+    $('#source-health-summary').innerHTML=[['Sources',rows.length],['Unknown entries',unknown],['No-chapter entries',empty],['Total unread',rows.reduce((n,r)=>n+r.unread,0)]].map(([k,v])=>`<div class="stat-card"><strong>${Number(v).toLocaleString()}</strong><span>${k}</span></div>`).join('');
+    $('#source-health-list').innerHTML=rows.map(r=>`<div class="source-health-row"><div><strong>${esc(r.name)}</strong><small>ID ${esc(r.id)}${r.unknown?' · Unknown source ID':''}</small></div><div class="source-health-metrics"><span>${r.count} manga</span><span>${r.noCover} no cover</span><span>${r.noChapters} no chapters</span><span>${r.unread} unread</span></div></div>`).join('');
+  }
+
+  function computeOrphans() {
+    const usedCats=new Set(state.data.backupManga.flatMap(m=>m.categories.map(key64)));
+    const emptyCategories=[...state.categoryMap.entries()].filter(([id])=>!usedCats.has(id));
+    const orphanHistory=[]; const invalidTracking=[];
+    state.data.backupManga.forEach((m,index)=>{const chapterUrls=new Set(m.chapters.map(c=>c.url).filter(Boolean));m.history.forEach(h=>{if(h.url&&!chapterUrls.has(h.url))orphanHistory.push({index,title:displayTitle(m),url:h.url});});m.tracking.forEach(t=>{if(t.syncId==null)invalidTracking.push({index,title:displayTitle(m)});});});
+    return {emptyCategories,orphanHistory,invalidTracking};
+  }
+
+  function renderOrphans() {
+    const o=computeOrphans();
+    $('#orphan-summary').innerHTML=[['Unused categories',o.emptyCategories.length],['History without chapter',o.orphanHistory.length],['Tracking without ID',o.invalidTracking.length]].map(([k,v])=>`<div class="issue-card" data-severity="${v?'warn':'ok'}"><strong>${v}</strong><span>${k}</span></div>`).join('');
+    const rows=[...o.emptyCategories.map(([id,c])=>`Unused category · ${c.name} (${id})`),...o.orphanHistory.slice(0,100).map(x=>`History URL not in chapter list · ${x.title} · ${x.url}`),...o.invalidTracking.slice(0,100).map(x=>`Tracking entry without syncId · ${x.title}`)];
+    $('#orphan-list').innerHTML=rows.map(x=>`<div class="duplicate-item">${esc(x)}</div>`).join('')||'<div class="empty-state">No obvious orphan data.</div>';
+  }
+
+  function computeRepairPlan() {
+    const changes=[];
+    state.data.backupManga.forEach((m,index)=>{const bad=m.categories.filter(id=>!state.categoryMap.has(key64(id)));if(bad.length)changes.push({type:'dangling-category',index,title:displayTitle(m),remove:bad.map(key64)});});
+    state.repairPlan={generatedAt:new Date().toISOString(),changes}; return state.repairPlan;
+  }
+
+  function renderRepairPreview() {
+    const plan=computeRepairPlan();
+    $('#repair-preview').innerHTML=plan.changes.length?plan.changes.slice(0,300).map(x=>`<div class="duplicate-item"><strong>${esc(x.title)}</strong> · remove broken category reference${x.remove.length===1?'':'s'}: ${esc(x.remove.join(', '))}</div>`).join(''):'<div class="empty-state">No safe repair suggestions currently detected.</div>';
+    $('#apply-safe-repairs').disabled=!plan.changes.length;
+  }
+
+  function applySafeRepairs() {
+    const plan=state.repairPlan||computeRepairPlan(); if(!plan.changes.length){toast('No safe repairs to apply');return;}
+    if(!confirm(`Apply ${plan.changes.length} safe category-reference repair${plan.changes.length===1?'':'s'} to the in-memory backup?`))return;
+    plan.changes.forEach(x=>{const m=state.data.backupManga[x.index];if(m)m.categories=m.categories.filter(id=>!x.remove.includes(key64(id)));});
+    state.cache={health:null,duplicates:null,activity:null,searchIndex:null}; buildIndexes(); populateFilters(); renderRepairPreview(); renderDashboard(); toast('Safe repairs applied in memory');
+  }
+
+  function exportRepairPlan() { const plan=state.repairPlan||computeRepairPlan(); downloadBlob(new Blob([JSON.stringify(plan,null,2)],{type:'application/json'}),datedName('komikku-repair-plan','json')); }
+
   function switchAnalysisTab(name) {
     state.analysisTab = name;
     $$('#analysis-tabs [data-analysis]').forEach(b=>b.classList.toggle('active',b.dataset.analysis===name));
-    ['health','duplicates','compare','insights'].forEach(v=>$(`#analysis-${v}`).classList.toggle('hidden',v!==name));
+    ['health','duplicates','compare','insights','stale','source-health','orphans','repair'].forEach(v=>$(`#analysis-${v}`)?.classList.toggle('hidden',v!==name));
     if (name === 'health') renderHealth();
     if (name === 'duplicates') renderDuplicates();
     if (name === 'insights') renderInsights();
+    if (name === 'stale') renderStale();
+    if (name === 'source-health') renderSourceHealth();
+    if (name === 'orphans') renderOrphans();
+    if (name === 'repair') renderRepairPreview();
   }
 
   function mangaCompareKey(m) {
@@ -651,7 +803,7 @@
       if (oldCats !== newCats) { changes.push('categories'); categoryChanges++; }
       if (unreadCountRaw(old) !== unreadCountRaw(m)) changes.push('read state');
       if (bookmarkCountRaw(old) !== bookmarkCountRaw(m)) changes.push('bookmarks');
-      if (changes.length) changed.push({ key, title: displayComparableTitle(m), source: key64(m.source), changes });
+      if (changes.length) changed.push({ key, title: displayComparableTitle(m), source: key64(m.source), changes, before:summaryManga(old), after:summaryManga(m), beforeUnread:unreadCountRaw(old), afterUnread:unreadCountRaw(m), beforeBookmarks:bookmarkCountRaw(old), afterBookmarks:bookmarkCountRaw(m) });
     }
     for (const [key,m] of a) if (!b.has(key)) removed.push(summaryManga(m));
     return { added, removed, changed, newChapters, categoryChanges, currentCount:a.size, compareCount:b.size, generatedAt:new Date().toISOString() };
@@ -686,48 +838,49 @@
   }
 
   function renderComparison() {
-    const d = state.diff;
-    if (!d) return;
+    const d = state.diff; if (!d) return;
     const cards = [['Comparison only',d.added.length],['Current only',d.removed.length],['Changed',d.changed.length],['New chapters',d.newChapters],['Category changes',d.categoryChanges]];
     $('#compare-summary').innerHTML = cards.map(([k,v])=>`<div class="stat-card"><strong>${v.toLocaleString()}</strong><span>${esc(k)}</span></div>`).join('');
     $('#compare-summary').classList.remove('hidden');
-    const renderItems = (items,type) => items.slice(0,200).map(x=>`<div class="diff-row"><strong>${esc(x.title)}</strong>${type==='changed'?`<br><span class="muted">${esc(x.changes.join(', '))}</span>`:`<br><span class="muted">${esc(x.url||x.source)}</span>`}</div>`).join('') || '<div class="muted">None</div>';
-    $('#compare-details').innerHTML = `<div class="diff-column"><h3>Comparison only +${d.added.length}</h3><div class="diff-list">${renderItems(d.added,'added')}</div></div><div class="diff-column"><h3>Current only −${d.removed.length}</h3><div class="diff-list">${renderItems(d.removed,'removed')}</div></div><div class="diff-column"><h3>Changed ~${d.changed.length}</h3><div class="diff-list">${renderItems(d.changed,'changed')}</div></div>`;
-    $('#compare-details').classList.remove('hidden');
-    $('#export-diff').classList.remove('hidden');
+    const renderItems = (items,type) => items.slice(0,200).map((x,i)=>type==='changed'?`<button class="diff-row diff-button" data-compare-change="${i}"><strong>${esc(x.title)}</strong><br><span class="muted">${esc(x.changes.join(', '))}</span></button>`:`<div class="diff-row"><strong>${esc(x.title)}</strong><br><span class="muted">${esc(x.url||x.source)}</span></div>`).join('') || '<div class="muted">None</div>';
+    $('#compare-details').innerHTML = `<div class="diff-column"><h3>Comparison only +${d.added.length}</h3><div class="diff-list">${renderItems(d.added,'added')}</div></div><div class="diff-column"><h3>Current only −${d.removed.length}</h3><div class="diff-list">${renderItems(d.removed,'removed')}</div></div><div class="diff-column"><h3>Changed ~${d.changed.length}</h3><div class="diff-list">${renderItems(d.changed,'changed')}</div></div><div id="compare-change-detail" class="compare-change-detail"><p class="muted">Select a changed manga to inspect field differences.</p></div>`;
+    $('#compare-details').classList.remove('hidden'); $('#export-diff').classList.remove('hidden');
   }
 
-  function showManga(index) {
-    const m = state.data?.backupManga?.[Number(index)];
-    if (!m) return;
-    state.modalMangaIndex = Number(index);
-    const cats = m.categories.map(id => state.categoryMap.get(key64(id))?.name).filter(Boolean);
-    const genres = displayGenres(m);
-    const source = sourceName(m);
-    const chapters = [...m.chapters].sort((a,b) => asNum(b.chapterNumber)-asNum(a.chapterNumber) || asNum(b.sourceOrder)-asNum(a.sourceOrder));
-    const trackingHtml = m.tracking.length ? m.tracking.map(t=>`<div class="tracking-card"><strong>${esc(t.title || displayTitle(m))}</strong><small>Tracker ID ${esc(t.syncId ?? '—')} · Progress ${esc(t.lastChapterRead ?? 0)} / ${esc(t.totalChapters ?? '—')} · Score ${esc(t.score ?? '—')}</small>${t.trackingUrl?`<small>${esc(t.trackingUrl)}</small>`:''}</div>`).join('') : '<div class="empty-state">No tracking entries.</div>';
-    const chapterHtml = chapters.length ? chapters.map(c => `<div class="chapter-row"><div><strong>${esc(c.name || `Chapter ${c.chapterNumber ?? ''}`)}</strong><small>${c.scanlator?esc(c.scanlator):''}${c.lastPageRead?` · page ${esc(c.lastPageRead)}`:''}${c.dateUpload?` · ${new Date(asNum(c.dateUpload)).toLocaleDateString()}`:''}</small></div><div class="chapter-flags">${c.read?'<span class="flag read">Read</span>':'<span class="flag">Unread</span>'}${c.bookmark?'<span class="flag bookmark">★</span>':''}</div></div>`).join('') : '<div class="empty-state">No chapters stored in this backup.</div>';
+  function renderCompareChangeDetail(i) { const x=state.diff?.changed?.[i], el=$('#compare-change-detail'); if(!x||!el)return; const rows=[['Title',x.before.title,x.after.title],['Chapters',x.before.chapters,x.after.chapters],['Unread',x.beforeUnread,x.afterUnread],['Bookmarks',x.beforeBookmarks,x.afterBookmarks],['Source',x.before.source,x.after.source],['URL',x.before.url,x.after.url]]; el.innerHTML=`<h3>${esc(x.title)}</h3><p class="muted">Changed: ${esc(x.changes.join(', '))}</p><div class="compare-field-grid">${rows.map(([k,a,b])=>`<div><b>${esc(k)}</b><span>${esc(a)}</span><span>→</span><span>${esc(b)}</span></div>`).join('')}</div>`; }
 
-    $('#modal-content').innerHTML = `
-      <div class="detail-hero">
-        <div>${displayCover(m)?`<img class="detail-cover" src="${esc(displayCover(m))}" alt="" referrerpolicy="no-referrer">`:`<div class="detail-cover cover-fallback">◇</div>`}</div>
-        <div><div class="eyebrow">${esc(source)}</div><h2 id="modal-title" class="detail-title">${esc(displayTitle(m))}</h2>
-          <div class="chips">${cats.map(c=>`<span class="chip">${esc(c)}</span>`).join('')}${genres.slice(0,12).map(g=>`<span class="chip">${esc(g)}</span>`).join('')}</div>
-          <div class="metadata"><div><b>Author</b>${esc(displayAuthor(m)||'—')}</div><div><b>Artist</b>${esc(displayArtist(m)||'—')}</div><div><b>Status</b>${esc(displayStatus(m))}</div><div><b>Progress</b>${readCount(m)} / ${m.chapters.length} read</div><div><b>Bookmarks</b>${bookmarkCount(m)}</div><div><b>Tracking</b>${m.tracking.length}</div></div>
-        </div>
-      </div>
-      <div class="modal-tabs"><button class="modal-tab active" data-modal-tab="overview">Overview</button><button class="modal-tab" data-modal-tab="chapters">Chapters</button><button class="modal-tab" data-modal-tab="tracking">Tracking</button><button class="modal-tab" data-modal-tab="raw">Raw</button></div>
+  function showManga(index) {
+    const m = state.data?.backupManga?.[Number(index)]; if (!m) return;
+    state.modalMangaIndex = Number(index); state.chapterUi={search:'',filter:'all',sort:'number-desc'};
+    const cats=m.categories.map(id=>state.categoryMap.get(key64(id))?.name).filter(Boolean), genres=displayGenres(m), source=sourceName(m);
+    const trackingHtml=m.tracking.length?m.tracking.map(t=>{const info=trackerInfo(t.syncId);return `<div class="tracking-card detailed-tracker"><span class="tracker-logo">${esc(info.mark)}</span><div><strong>${esc(info.name)} · ${esc(t.title||displayTitle(m))}</strong><small>Progress ${esc(t.lastChapterRead??0)} / ${esc(t.totalChapters??'—')} · Score ${esc(t.score??'—')} · Status ${esc(t.status??'—')}</small><small>Started ${trackerDate(t.startedReadingDate)} · Finished ${trackerDate(t.finishedReadingDate)}${t.private?' · Private':''}</small>${t.trackingUrl?`<a class="tracker-link" href="${esc(t.trackingUrl)}" target="_blank" rel="noopener noreferrer">Open tracker ↗</a>`:''}</div></div>`}).join(''):'<div class="empty-state">No tracking entries.</div>';
+    const mangaLink=/^https?:\/\//i.test(m.url||'')?`<a class="source-open-link" href="${esc(m.url)}" target="_blank" rel="noopener noreferrer">Open source page ↗</a>`:'';
+    $('#modal-content').innerHTML=`<div class="detail-hero"><div>${displayCover(m)?`<img class="detail-cover" src="${esc(displayCover(m))}" alt="" referrerpolicy="no-referrer">`:`<div class="detail-cover cover-fallback">◇</div>`}</div><div><div class="eyebrow">${esc(source)}</div><h2 id="modal-title" class="detail-title">${esc(displayTitle(m))}</h2>${mangaLink}<div class="chips">${cats.map(c=>`<button class="chip chip-button" data-search-jump="category:&quot;${esc(c)}&quot;">${esc(c)}</button>`).join('')}${genres.slice(0,12).map(g=>`<button class="chip chip-button" data-search-jump="genre:&quot;${esc(g)}&quot;">${esc(g)}</button>`).join('')}</div><div class="metadata"><div><b>Author</b>${displayAuthor(m)?`<button class="inline-link" data-search-jump="author:&quot;${esc(displayAuthor(m))}&quot;">${esc(displayAuthor(m))}</button>`:'—'}</div><div><b>Artist</b>${displayArtist(m)?`<button class="inline-link" data-search-jump="artist:&quot;${esc(displayArtist(m))}&quot;">${esc(displayArtist(m))}</button>`:'—'}</div><div><b>Status</b>${esc(displayStatus(m))}</div><div><b>Progress</b>${readCount(m)} / ${m.chapters.length} read</div><div><b>Bookmarks</b>${bookmarkCount(m)}</div><div><b>Tracking</b>${m.tracking.length}</div></div></div></div>
+      <div class="modal-tabs"><button class="modal-tab active" data-modal-tab="overview">Overview</button><button class="modal-tab" data-modal-tab="chapters">Chapters</button><button class="modal-tab" data-modal-tab="tracking">Tracking${m.tracking.length?` (${m.tracking.length})`:''}</button><button class="modal-tab" data-modal-tab="raw">Raw</button></div>
       <div class="modal-tab-panel" data-modal-panel="overview">${displayDescription(m)?`<p class="description">${esc(displayDescription(m))}</p>`:'<p class="muted">No description stored.</p>'}${m.notes?`<p class="description"><strong>Notes:</strong> ${esc(m.notes)}</p>`:''}<div class="detail-list"><div class="detail-item"><span>Source ID</span><strong>${esc(key64(m.source))}</strong></div><div class="detail-item"><span>Date added</span><strong>${asNum(m.dateAdded)?new Date(asNum(m.dateAdded)).toLocaleString():'—'}</strong></div><div class="detail-item"><span>Last read</span><strong>${lastRead(m)?new Date(lastRead(m)).toLocaleString():'—'}</strong></div><div class="detail-item"><span>Merged references</span><strong>${m.mergedMangaReferences.length}</strong></div></div></div>
-      <div class="modal-tab-panel hidden" data-modal-panel="chapters"><div class="chapter-head"><h3>Chapters</h3><span class="muted">${chapters.length.toLocaleString()} total</span></div><div class="chapter-list">${chapterHtml}</div></div>
-      <div class="modal-tab-panel hidden" data-modal-panel="tracking"><div class="tracking-grid">${trackingHtml}</div></div>
-      <div class="modal-tab-panel hidden" data-modal-panel="raw"><pre class="raw-box">${esc(JSON.stringify(m,null,2))}</pre></div>`;
-    $('#modal').classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
+      <div class="modal-tab-panel hidden" data-modal-panel="chapters"><div class="chapter-head"><h3>Chapters</h3><span class="muted">${m.chapters.length.toLocaleString()} total</span></div><div class="chapter-toolbar"><label class="searchbox"><span>⌕</span><input id="chapter-search" type="search" placeholder="Search chapter or scanlator"></label><select id="chapter-filter"><option value="all">All</option><option value="unread">Unread</option><option value="read">Read</option><option value="bookmarked">Bookmarked</option></select><select id="chapter-sort"><option value="number-desc">Newest number</option><option value="number-asc">Oldest number</option><option value="upload-desc">Newest upload</option><option value="upload-asc">Oldest upload</option><option value="source-desc">Source order ↓</option><option value="source-asc">Source order ↑</option></select></div><div id="chapter-result-meta" class="result-meta"></div><div id="chapter-list" class="chapter-list"></div></div>
+      <div class="modal-tab-panel hidden" data-modal-panel="tracking"><div class="tracking-grid">${trackingHtml}</div></div><div class="modal-tab-panel hidden" data-modal-panel="raw"><pre class="raw-box">${esc(JSON.stringify(m,null,2))}</pre></div>`;
+    $('#modal').classList.remove('hidden'); document.body.style.overflow='hidden'; renderChapterPanel();
+  }
+
+  function renderChapterPanel() {
+    const m=state.data?.backupManga?.[state.modalMangaIndex]; const list=$('#chapter-list'); if(!m||!list)return;
+    const q=normalizeText($('#chapter-search')?.value??state.chapterUi.search), filter=$('#chapter-filter')?.value||state.chapterUi.filter, sort=$('#chapter-sort')?.value||state.chapterUi.sort;
+    state.chapterUi={search:q,filter,sort}; let chapters=[...m.chapters];
+    if(q)chapters=chapters.filter(c=>normalizeText(`${c.name||''} ${c.scanlator||''}`).includes(q));
+    if(filter==='unread')chapters=chapters.filter(c=>!c.read); if(filter==='read')chapters=chapters.filter(c=>c.read); if(filter==='bookmarked')chapters=chapters.filter(c=>c.bookmark);
+    const num=c=>asNum(c.chapterNumber)||asNum(c.sourceOrder); const up=c=>asNum(c.dateUpload); const so=c=>asNum(c.sourceOrder);
+    chapters.sort((a,b)=>sort==='number-asc'?num(a)-num(b):sort==='upload-desc'?up(b)-up(a):sort==='upload-asc'?up(a)-up(b):sort==='source-desc'?so(b)-so(a):sort==='source-asc'?so(a)-so(b):num(b)-num(a));
+    const uploadIcon='<svg class="chapter-meta-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4"/><path d="M5 14v5h14v-5"/></svg>', eyeIcon='<svg class="chapter-meta-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.4-5 9.5-5 9.5 5 9.5 5-3.4 5-9.5 5-9.5-5-9.5-5Z"/><circle cx="12" cy="12" r="2.6"/></svg>';
+    const fmt=v=>{const n=asNum(v);if(!n)return'';const d=new Date(n);return Number.isNaN(d.getTime())?'':d.toLocaleString(undefined,{year:'numeric',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});};
+    list.innerHTML=chapters.map(c=>{const h=m.history.find(x=>x.url===c.url), uploaded=fmt(c.dateUpload), lr=fmt(h?.lastRead);return `<div class="chapter-row"><div class="chapter-main"><strong class="chapter-name">${esc(c.name||`Chapter ${c.chapterNumber??''}`)}</strong><div class="chapter-meta">${uploaded?`<span class="chapter-meta-item upload-meta">${uploadIcon}<span>${esc(uploaded)}</span></span>`:''}${lr?`<span class="chapter-meta-item read-meta">${eyeIcon}<span>${esc(lr)}</span></span>`:''}${c.scanlator?`<span class="chapter-meta-item"><span>Scanlator · ${esc(c.scanlator)}</span></span>`:''}${c.lastPageRead?`<span class="chapter-meta-item"><span>Page ${esc(c.lastPageRead)}</span></span>`:''}</div></div><div class="chapter-flags">${c.read?'<span class="flag read">Read</span>':'<span class="flag">Unread</span>'}${c.bookmark?'<span class="flag bookmark">★</span>':''}</div></div>`}).join('')||'<div class="empty-state">No chapters match.</div>';
+    if($('#chapter-result-meta'))$('#chapter-result-meta').textContent=`${chapters.length.toLocaleString()} of ${m.chapters.length.toLocaleString()} chapters`;
   }
 
   function switchModalTab(name) {
     $$('.modal-tab').forEach(b=>b.classList.toggle('active',b.dataset.modalTab===name));
     $$('.modal-tab-panel').forEach(p=>p.classList.toggle('hidden',p.dataset.modalPanel!==name));
+    if(name==='chapters') renderChapterPanel();
   }
 
   function closeModal() {
@@ -756,7 +909,8 @@
     if (name === 'library') applyFilters(false);
     if (name === 'explore') switchExploreTab(state.exploreTab);
     if (name === 'analyze') switchAnalysisTab(state.analysisTab);
-    if (name === 'tools') $('#debug-output').textContent = state.debug.join('\n');
+    if (name === 'tools') { $('#debug-output').textContent = state.debug.join('\n'); renderBackupMetadata(); }
+    saveSettings({lastView:name});
     setMobileMenu(false);
     window.scrollTo({top:0,behavior:'smooth'});
   }
@@ -769,6 +923,49 @@
     switchView('library');
     applyFilters(true);
   }
+
+  function jumpSearch(query) { $('#search-input').value=query; state.quickFilter=''; updateQuickChipUi(); switchView('library'); applyFilters(true); }
+
+  function renderSearchPresets() {
+    const el=$('#search-presets'); if(!el)return; const presets=asArray(state.settings.presets);
+    el.innerHTML=presets.length?presets.map((x,i)=>`<button class="preset-chip" data-preset-index="${i}" title="${esc(x.query||'Saved filters')}">${esc(x.name)}</button>`).join(''):'<span class="muted preset-empty">No saved filter presets.</span>';
+  }
+
+  function saveSearchPreset() {
+    if(!state.data)return; const name=prompt('Name this filter preset:'); if(!name)return;
+    const preset={name:name.trim().slice(0,40)||'Preset',query:$('#search-input').value,category:$('#category-filter').value,status:$('#status-filter').value,read:$('#read-filter').value,sort:$('#sort-select').value,quick:state.quickFilter};
+    const presets=[...asArray(state.settings.presets),preset].slice(-20); saveSettings({presets}); renderSearchPresets(); toast('Filter preset saved');
+  }
+
+  function applyPreset(i) { const x=asArray(state.settings.presets)[Number(i)]; if(!x)return; $('#search-input').value=x.query||''; $('#category-filter').value=x.category||'all'; $('#status-filter').value=x.status||'all'; $('#read-filter').value=x.read||'all'; $('#sort-select').value=x.sort||'title'; state.quickFilter=x.quick||''; updateQuickChipUi(); applyFilters(true); }
+
+  function renderBackupMetadata() {
+    const el=$('#backup-metadata'); if(!el)return; if(!state.data){el.innerHTML='<div class="muted">No backup loaded.</div>';return;} const m=state.primaryMeta||{};
+    const rows=[['File',state.fileName],['File size',m.size!=null?formatBytes(m.size):'—'],['Format',m.format||'—'],['Decoded payload',m.decodedBytes!=null?formatBytes(m.decodedBytes):'—'],['Manga',state.data.backupManga.length.toLocaleString()],['Sources',state.data.backupSources.length.toLocaleString()],['Categories',state.data.backupCategories.length.toLocaleString()],['Schema','Komikku protobuf']];
+    el.innerHTML=rows.map(([k,v])=>`<div class="detail-item"><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('');
+  }
+
+  function csvEscape(v){const s=String(v??'');return (s.includes('\"')||s.includes(',')||s.includes('\n'))?`\"${s.replace(/\"/g,'\"\"')}\"`:s;}
+  function downloadCsv(rows,name){const text='\ufeff'+rows.map(r=>r.map(csvEscape).join(',')).join('\r\n');downloadBlob(new Blob([text],{type:'text/csv;charset=utf-8'}),name);}
+  function exportLibraryCsv(){if(!state.data)return;const rows=[['Title','Author','Artist','Source','Status','Chapters','Read','Unread','Bookmarks','Trackers','Date Added','Last Read','URL']];state.data.backupManga.forEach(m=>rows.push([displayTitle(m),displayAuthor(m),displayArtist(m),sourceName(m),displayStatus(m),m.chapters.length,readCount(m),unreadCount(m),bookmarkCount(m),m.tracking.map(t=>trackerInfo(t.syncId).name).join(' | '),asNum(m.dateAdded)?new Date(asNum(m.dateAdded)).toISOString():'',lastRead(m)?new Date(lastRead(m)).toISOString():'',m.url||'']));downloadCsv(rows,datedName('komikku-library','csv'));}
+  function healthRows(){const h=computeHealth();const rows=[['Issue','Count']];[['Missing title',h.issues.missingTitle.length],['Missing cover',h.issues.missingCover.length],['No chapters',h.issues.noChapters.length],['Unknown source',h.issues.unknownSource.length],['Broken category ref',h.issues.danglingCategory.length],['Strong duplicate groups',h.duplicateGroups]].forEach(x=>rows.push(x));return rows;}
+  function exportHealthCsv(){downloadCsv(healthRows(),datedName('komikku-health','csv'));}
+  function exportHealthJson(){const payload={file:state.fileName,health:computeHealth(),duplicates:computeDuplicates(),orphans:computeOrphans(),sourceHealth:sourceHealthRows()};downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),datedName('komikku-health','json'));}
+
+  function openThemePicker(){updateThemeUi();$('#theme-modal').classList.remove('hidden');document.body.style.overflow='hidden';}
+  function closeThemePicker(){ $('#theme-modal').classList.add('hidden'); if($('#modal').classList.contains('hidden')&&$('#report-modal').classList.contains('hidden'))document.body.style.overflow=''; }
+  function setTheme(name){if(!(name in THEMES))return;saveSettings({theme:name});updateThemeUi();closeThemePicker();toast(`Theme: ${THEMES[name].name}`);}
+
+  function applyPerformanceMode(){const mode=state.settings.performanceMode||'auto';const enabled=mode==='on'||(mode==='auto'&&((state.data?.backupManga?.length||0)>=5000||matchMedia('(max-width:680px)').matches));document.body.classList.toggle('performance-mode',enabled);}
+  function lockViewer(){if(!state.data)return;setMobileMenu(false);document.body.classList.add('viewer-locked');$('#privacy-lock').classList.remove('hidden');document.body.style.overflow='hidden';}
+  function unlockViewer(){document.body.classList.remove('viewer-locked');$('#privacy-lock').classList.add('hidden');document.body.style.overflow='';armAutoLock();}
+  function armAutoLock(){clearTimeout(state.lockTimer);const min=Number(state.settings.autoLock||0);if(min>0&&state.data&&!document.body.classList.contains('viewer-locked'))state.lockTimer=setTimeout(lockViewer,min*60000);}
+
+  function exportViewerSettings(){const payload={app:'Kirin Komikku Viewer',version:'1.3.0',settings:state.settings};downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),'kirin-komikku-viewer-settings.json');}
+  async function importViewerSettings(file){if(!file)return;try{const obj=JSON.parse(await file.text());const incoming=obj.settings||obj;if(!incoming||typeof incoming!=='object')throw new Error('Invalid settings file');state.settings={...defaultSettings,...incoming};localStorage.setItem(SETTINGS_KEY,JSON.stringify(state.settings));applySavedSettings();if(state.data)applyFilters(true);toast('Viewer settings imported');}catch(e){toast(`Import failed: ${e.message}`);}finally{$('#settings-input').value='';}}
+
+  async function installApp(){if(state.installPrompt){state.installPrompt.prompt();await state.installPrompt.userChoice;state.installPrompt=null;return;}toast('Use browser “Add to Home screen” if install is not offered.');}
+  function registerPwa(){if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(e=>log(`Service worker: ${e.message}`));window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();state.installPrompt=e;});}
 
   async function exportJson() {
     if (!state.data) return;
@@ -841,93 +1038,51 @@
   function closeBackup() {
     setMobileMenu(false);
     state.data = null; state.fileName = ''; state.filtered = []; state.page = 1; state.compareData=null; state.diff=null; state.compareFileName='';
-    state.cache={health:null,duplicates:null,activity:null}; state.quickFilter='';
+    state.cache={health:null,duplicates:null,activity:null,searchIndex:null}; state.quickFilter=''; state.primaryMeta=null; state.repairPlan=null; clearTimeout(state.lockTimer);
     $('#app-view').classList.add('hidden'); $('#loader-view').classList.remove('hidden'); document.body.classList.remove('has-backup');
-    closeModal(); closeReport(); diag('Ready · choose a Komikku .tachibk backup.'); window.scrollTo({top:0,behavior:'smooth'});
+    closeModal(); closeReport(); closeThemePicker(); unlockViewer(); diag('Ready · choose a Komikku .tachibk backup.'); window.scrollTo({top:0,behavior:'smooth'});
   }
 
   function clearViewerSettings() {
-    localStorage.removeItem(SETTINGS_KEY);
-    state.settings = { ...defaultSettings };
-    document.documentElement.classList.remove('light');
-    applySavedSettings();
-    if (state.data) applyFilters(true);
-    toast('Viewer settings cleared');
+    localStorage.removeItem(SETTINGS_KEY); localStorage.removeItem('kirin-komikku-viewer-settings-v12'); state.settings={...defaultSettings,presets:[]}; applySavedSettings(); if(state.data)applyFilters(true); toast('Viewer settings cleared');
   }
 
   function bind() {
-    $('#choose-file').addEventListener('click', e => { e.stopPropagation(); $('#file-input').click(); });
-    $('#new-backup').addEventListener('click', () => state.data ? closeBackup() : $('#file-input').click());
-    $('#open-another').addEventListener('click', () => $('#file-input').click());
-    $('#file-input').addEventListener('change', e => openFile(e.target.files?.[0]));
-    $('#mobile-menu-toggle').addEventListener('click', e => {
-      e.stopPropagation();
-      setMobileMenu(!document.body.classList.contains('mobile-menu-open'));
-    });
+    $('#choose-file').addEventListener('click', e=>{e.stopPropagation();$('#file-input').click();});
+    $('#new-backup').addEventListener('click',()=>state.data?closeBackup():$('#file-input').click()); $('#open-another').addEventListener('click',()=>$('#file-input').click()); $('#file-input').addEventListener('change',e=>openFile(e.target.files?.[0]));
+    $('#mobile-menu-toggle').addEventListener('click',e=>{e.stopPropagation();setMobileMenu(!document.body.classList.contains('mobile-menu-open'));});
+    const dz=$('#drop-zone'); dz.addEventListener('click',e=>{if(!e.target.closest('button'))$('#file-input').click();}); dz.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('#file-input').click();}}); ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('drag');})); ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('drag');})); dz.addEventListener('drop',e=>openFile(e.dataTransfer.files?.[0]));
 
-    const dz = $('#drop-zone');
-    dz.addEventListener('click', e => { if (!e.target.closest('button')) $('#file-input').click(); });
-    dz.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#file-input').click(); } });
-    ['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('drag'); }));
-    ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('drag'); }));
-    dz.addEventListener('drop', e => openFile(e.dataTransfer.files?.[0]));
-
-    $('#search-input').addEventListener('input', () => applyFilters(true));
-    ['category-filter','status-filter','read-filter','sort-select'].forEach(id => {
-      $(`#${id}`).addEventListener('change', () => {
-        if (id === 'sort-select') saveSettings({sort:$('#sort-select').value});
-        if (id === 'status-filter') saveSettings({status:$('#status-filter').value});
-        if (id === 'read-filter') saveSettings({read:$('#read-filter').value});
-        applyFilters(true);
-      });
-    });
-    $('#view-mode-select').addEventListener('change',()=>{saveSettings({viewMode:$('#view-mode-select').value});renderLibrary();});
-    $('#card-size-select').addEventListener('change',()=>{saveSettings({cardSize:$('#card-size-select').value});renderLibrary();});
-    $('#page-size-select').addEventListener('change',()=>{state.pageSize=Number($('#page-size-select').value)||30;saveSettings({pageSize:state.pageSize});applyFilters(true);});
+    let searchTimer; $('#search-input').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>applyFilters(true),document.body.classList.contains('performance-mode')?260:120);});
+    ['category-filter','status-filter','read-filter','sort-select'].forEach(id=>$(`#${id}`).addEventListener('change',()=>{if(id==='sort-select')saveSettings({sort:$('#sort-select').value});if(id==='status-filter')saveSettings({status:$('#status-filter').value});if(id==='read-filter')saveSettings({read:$('#read-filter').value});applyFilters(true);}));
+    $('#view-mode-select').addEventListener('change',()=>{saveSettings({viewMode:$('#view-mode-select').value});renderLibrary();}); $('#card-size-select').addEventListener('change',()=>{saveSettings({cardSize:$('#card-size-select').value});renderLibrary();}); $('#page-size-select').addEventListener('change',()=>{state.pageSize=Number($('#page-size-select').value)||30;saveSettings({pageSize:state.pageSize});applyFilters(true);});
     $('#quick-chips').addEventListener('click',e=>{const btn=e.target.closest('[data-quick]');if(!btn)return;const q=btn.dataset.quick;if(q==='clear'){state.quickFilter='';$('#search-input').value='';$('#category-filter').value='all';$('#status-filter').value='all';$('#read-filter').value='all';}else state.quickFilter=state.quickFilter===q?'':q;updateQuickChipUi();applyFilters(true);});
+    $('#save-search-preset').addEventListener('click',saveSearchPreset); $('#clear-search-presets').addEventListener('click',()=>{saveSettings({presets:[]});renderSearchPresets();});
 
-    $('#prev-page').addEventListener('click', () => { state.page--; renderLibrary(); window.scrollTo({top:120,behavior:'smooth'}); });
-    $('#next-page').addEventListener('click', () => { state.page++; renderLibrary(); window.scrollTo({top:120,behavior:'smooth'}); });
-    $$('.nav-btn').forEach(b => b.addEventListener('click', () => switchView(b.dataset.view)));
-    $$('#explore-tabs [data-explore]').forEach(b=>b.addEventListener('click',()=>switchExploreTab(b.dataset.explore)));
-    $$('#analysis-tabs [data-analysis]').forEach(b=>b.addEventListener('click',()=>switchAnalysisTab(b.dataset.analysis)));
+    $('#prev-page').addEventListener('click',()=>{state.page--;renderLibrary();window.scrollTo({top:120,behavior:'smooth'});}); $('#next-page').addEventListener('click',()=>{state.page++;renderLibrary();window.scrollTo({top:120,behavior:'smooth'});});
+    $$('.nav-btn').forEach(b=>b.addEventListener('click',()=>switchView(b.dataset.view))); $$('#explore-tabs [data-explore]').forEach(b=>b.addEventListener('click',()=>switchExploreTab(b.dataset.explore))); $$('#analysis-tabs [data-analysis]').forEach(b=>b.addEventListener('click',()=>switchAnalysisTab(b.dataset.analysis)));
+    $('#dashboard-health-jump').addEventListener('click',()=>{switchView('analyze');switchAnalysisTab('health');}); $('#choose-compare').addEventListener('click',()=>$('#compare-input').click()); $('#compare-input').addEventListener('change',e=>loadComparison(e.target.files?.[0])); $('#export-diff').addEventListener('click',exportDiff);
+    $('#export-json').addEventListener('click',exportJson); $('#export-tachibk').addEventListener('click',exportTachibk); $('#export-library-csv').addEventListener('click',exportLibraryCsv); $('#export-health-csv').addEventListener('click',exportHealthCsv); $('#export-health-json').addEventListener('click',exportHealthJson); $('#summary-report').addEventListener('click',openSummaryReport); $('#print-report').addEventListener('click',()=>window.print());
+    $('#open-theme-picker').addEventListener('click',openThemePicker); $('#theme-toggle').addEventListener('click',openThemePicker); $('#performance-mode-select').addEventListener('change',()=>{saveSettings({performanceMode:$('#performance-mode-select').value});applyPerformanceMode();}); $('#lock-viewer').addEventListener('click',lockViewer); $('#unlock-viewer').addEventListener('click',unlockViewer); $('#auto-lock-select').addEventListener('change',()=>{saveSettings({autoLock:Number($('#auto-lock-select').value)||0});armAutoLock();});
+    $('#export-settings').addEventListener('click',exportViewerSettings); $('#import-settings').addEventListener('click',()=>$('#settings-input').click()); $('#settings-input').addEventListener('change',e=>importViewerSettings(e.target.files?.[0])); $('#install-app').addEventListener('click',installApp); $('#clear-settings').addEventListener('click',clearViewerSettings); $('#clear-session').addEventListener('click',closeBackup); $('#stale-days').addEventListener('change',renderStale); $('#apply-safe-repairs').addEventListener('click',applySafeRepairs); $('#export-repair-plan').addEventListener('click',exportRepairPlan);
 
-    $('#dashboard-health-jump').addEventListener('click',()=>{switchView('analyze');switchAnalysisTab('health');});
-    $('#choose-compare').addEventListener('click',()=>$('#compare-input').click());
-    $('#compare-input').addEventListener('change',e=>loadComparison(e.target.files?.[0]));
-    $('#export-diff').addEventListener('click',exportDiff);
-    $('#export-json').addEventListener('click', exportJson);
-    $('#export-tachibk').addEventListener('click', exportTachibk);
-    $('#summary-report').addEventListener('click',openSummaryReport);
-    $('#print-report').addEventListener('click',()=>window.print());
-    $('#clear-settings').addEventListener('click',clearViewerSettings);
-    $('#clear-session').addEventListener('click', closeBackup);
-
-    document.addEventListener('click', e => {
-      if (document.body.classList.contains('mobile-menu-open') && !e.target.closest('#primary-nav') && !e.target.closest('#mobile-menu-toggle')) setMobileMenu(false);
-      const hit = e.target.closest('[data-manga-index]');
-      if (hit) showManga(hit.dataset.mangaIndex);
-      const modalTab=e.target.closest('[data-modal-tab]'); if(modalTab) switchModalTab(modalTab.dataset.modalTab);
-      const categoryJump=e.target.closest('[data-category-jump]'); if(categoryJump) jumpToLibrary({category:categoryJump.dataset.categoryJump});
-      const sourceJump=e.target.closest('[data-source-jump]'); if(sourceJump) jumpToLibrary({source:sourceJump.dataset.sourceJump});
-      const viewJump=e.target.closest('[data-view-jump]'); if(viewJump) switchView(viewJump.dataset.viewJump);
-      const exploreJump=e.target.closest('[data-explore-tab]'); if(exploreJump){switchView('explore');switchExploreTab(exploreJump.dataset.exploreTab);}
-      const analysisJump=e.target.closest('[data-analysis-tab]'); if(analysisJump){switchView('analyze');switchAnalysisTab(analysisJump.dataset.analysisTab);}
-      if (e.target.closest('[data-close-modal]')) closeModal();
-      if (e.target.closest('[data-close-report]')) closeReport();
+    document.addEventListener('input',e=>{if(e.target.matches('#chapter-search'))renderChapterPanel();}); document.addEventListener('change',e=>{if(e.target.matches('#chapter-filter,#chapter-sort'))renderChapterPanel();});
+    document.addEventListener('click',e=>{
+      armAutoLock(); if(document.body.classList.contains('mobile-menu-open')&&!e.target.closest('#primary-nav')&&!e.target.closest('#mobile-menu-toggle'))setMobileMenu(false);
+      const hit=e.target.closest('[data-manga-index]');if(hit)showManga(hit.dataset.mangaIndex); const mt=e.target.closest('[data-modal-tab]');if(mt)switchModalTab(mt.dataset.modalTab);
+      const categoryJump=e.target.closest('[data-category-jump]');if(categoryJump)jumpToLibrary({category:categoryJump.dataset.categoryJump}); const sourceJump=e.target.closest('[data-source-jump]');if(sourceJump)jumpToLibrary({source:sourceJump.dataset.sourceJump});
+      const searchJump=e.target.closest('[data-search-jump]');if(searchJump){closeModal();jumpSearch(searchJump.dataset.searchJump.replace(/&quot;/g,'"'));} const smart=e.target.closest('[data-smart-jump]');if(smart){state.quickFilter=smart.dataset.smartJump;updateQuickChipUi();switchView('library');applyFilters(true);} const preset=e.target.closest('[data-preset-index]');if(preset)applyPreset(preset.dataset.presetIndex);
+      const trackerJump=e.target.closest('[data-tracker-jump]');if(trackerJump)jumpSearch(`tracker:"${trackerJump.dataset.trackerJump}"`); const compare=e.target.closest('[data-compare-change]');if(compare)renderCompareChangeDetail(Number(compare.dataset.compareChange));
+      const viewJump=e.target.closest('[data-view-jump]');if(viewJump)switchView(viewJump.dataset.viewJump); const exploreJump=e.target.closest('[data-explore-tab]');if(exploreJump){switchView('explore');switchExploreTab(exploreJump.dataset.exploreTab);} const analysisJump=e.target.closest('[data-analysis-tab]');if(analysisJump){switchView('analyze');switchAnalysisTab(analysisJump.dataset.analysisTab);}
+      const theme=e.target.closest('[data-theme-choice]');if(theme)setTheme(theme.dataset.themeChoice); if(e.target.closest('[data-close-theme]'))closeThemePicker(); if(e.target.closest('[data-close-modal]'))closeModal(); if(e.target.closest('[data-close-report]'))closeReport();
     });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') { setMobileMenu(false); closeModal(); closeReport(); } });
-
-    window.addEventListener('resize', () => { if (!window.matchMedia('(max-width: 1050px)').matches) setMobileMenu(false); });
-
-    $('#theme-toggle').addEventListener('click', () => {
-      document.documentElement.classList.toggle('light');
-      const theme=document.documentElement.classList.contains('light')?'light':'dark'; saveSettings({theme}); updateThemeUi();
-    });
+    ['mousemove','touchstart','keydown'].forEach(ev=>document.addEventListener(ev,armAutoLock,{passive:true}));
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'){setMobileMenu(false);closeModal();closeReport();closeThemePicker();return;}if(e.target.matches('input,textarea,select'))return;const k=e.key.toLowerCase();if(k==='/'){e.preventDefault();switchView('library');$('#search-input').focus();}if(state.data&&k==='d')switchView('dashboard');if(state.data&&k==='g')switchView('library');if(state.data&&k==='e')switchView('explore');if(state.data&&k==='a')switchView('analyze');if(state.data&&k==='t')switchView('tools');});
+    window.addEventListener('resize',()=>{if(!window.matchMedia('(max-width:1050px)').matches)setMobileMenu(false);applyPerformanceMode();});
   }
 
   window.addEventListener('DOMContentLoaded', async () => {
-    bind(); applySavedSettings();
+    bind(); applySavedSettings(); registerPwa();
     try { await ensureSchema(); diag('Ready ✓ · Komikku schema loaded · GZIP/raw protobuf supported.'); }
     catch (error) { diag(error.message, true); }
   });

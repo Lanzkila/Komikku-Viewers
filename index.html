@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
   <meta name="description" content="Client-side Komikku backup viewer and analyzer for .tachibk files.">
+  <meta name="application-name" content="Kirin Komikku Viewer">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/icons/app-icon.svg" type="image/svg+xml">
   <title>Kirin Komikku Backup Viewer</title>
   <link rel="stylesheet" href="./assets/css/app.css">
   <script defer src="https://cdn.jsdelivr.net/npm/long@5.2.3/umd/index.min.js"></script>
@@ -38,7 +44,7 @@
     <main>
       <section id="loader-view" class="loader-grid">
         <article class="hero-card">
-          <div class="eyebrow">KOMIKKU BACKUP VIEWER · ADVANCED BUILD</div>
+          <div class="eyebrow">KOMIKKU BACKUP VIEWER · ULTIMATE BUILD</div>
           <h1>Inspect your Komikku backup without uploading it anywhere.</h1>
           <p class="lead">Open <code>.tachibk</code>, raw protobuf, <code>.proto.gz</code>, or decoded JSON directly in your browser. Analysis stays local to this tab.</p>
 
@@ -167,7 +173,14 @@
             <button data-quick="clear">Clear</button>
           </div>
 
-          <div class="search-hint">Advanced syntax examples: <code>source:mangadex</code> · <code>genre:romance</code> · <code>status:completed</code> · <code>unread:&gt;10</code> · <code>author:"name"</code></div>
+          <div class="preset-toolbar">
+            <div id="search-presets" class="preset-list"></div>
+            <div class="preset-actions">
+              <button id="save-search-preset" class="outline-btn compact-btn">Save filter</button>
+              <button id="clear-search-presets" class="outline-btn compact-btn">Clear saved</button>
+            </div>
+          </div>
+          <div class="search-hint">Advanced syntax examples: <code>source:mangadex</code> · <code>genre:romance</code> · <code>status:completed</code> · <code>unread:&gt;10</code> · <code>chapters:&gt;100</code> · <code>history:false</code></div>
           <div id="library-meta" class="result-meta"></div>
           <div id="library-grid" class="manga-grid"></div>
           <div id="empty-library" class="empty-state hidden">No manga matches these filters.</div>
@@ -181,11 +194,21 @@
             <button class="subnav-btn" data-explore="sources">Sources</button>
             <button class="subnav-btn" data-explore="trackers">Trackers</button>
             <button class="subnav-btn" data-explore="activity">Reading Activity</button>
+            <button class="subnav-btn" data-explore="genres">Genres</button>
+            <button class="subnav-btn" data-explore="creators">Creators</button>
+            <button class="subnav-btn" data-explore="smart">Smart Collections</button>
+            <button class="subnav-btn" data-explore="growth">Library Growth</button>
+            <button class="subnav-btn" data-explore="heatmap">Heatmap</button>
           </div>
           <div id="explore-categories" class="subpanel"><div id="category-explorer" class="explorer-grid"></div></div>
           <div id="explore-sources" class="subpanel hidden"><div id="source-explorer" class="explorer-grid"></div></div>
           <div id="explore-trackers" class="subpanel hidden"><div id="tracker-overview" class="explorer-grid"></div></div>
           <div id="explore-activity" class="subpanel hidden"><div id="activity-timeline" class="timeline"></div></div>
+          <div id="explore-genres" class="subpanel hidden"><div id="genre-explorer" class="explorer-grid"></div></div>
+          <div id="explore-creators" class="subpanel hidden"><div class="two-col"><article class="info-panel"><h3>Authors</h3><div id="author-explorer" class="explorer-grid compact-explorer"></div></article><article class="info-panel"><h3>Artists</h3><div id="artist-explorer" class="explorer-grid compact-explorer"></div></article></div></div>
+          <div id="explore-smart" class="subpanel hidden"><div id="smart-collections" class="explorer-grid"></div><div class="section-spacer"><h3>Top manga</h3><div id="top-manga" class="list-stack"></div></div></div>
+          <div id="explore-growth" class="subpanel hidden"><article class="info-panel"><h3>Manga added over time</h3><div id="library-growth" class="growth-chart"></div></article></div>
+          <div id="explore-heatmap" class="subpanel hidden"><article class="info-panel"><div class="panel-title-row"><h3>Reading heatmap</h3><span id="heatmap-summary" class="muted"></span></div><div id="reading-heatmap" class="heatmap"></div><div class="heatmap-legend"><span>Less</span><i data-level="0"></i><i data-level="1"></i><i data-level="2"></i><i data-level="3"></i><i data-level="4"></i><span>More</span></div></article></div>
         </section>
 
         <section id="analyze-panel" class="panel-view hidden">
@@ -195,6 +218,10 @@
             <button class="subnav-btn" data-analysis="duplicates">Duplicates</button>
             <button class="subnav-btn" data-analysis="compare">Compare</button>
             <button class="subnav-btn" data-analysis="insights">Insights</button>
+            <button class="subnav-btn" data-analysis="stale">Stale</button>
+            <button class="subnav-btn" data-analysis="source-health">Source Health</button>
+            <button class="subnav-btn" data-analysis="orphans">Orphan Data</button>
+            <button class="subnav-btn" data-analysis="repair">Repair Preview</button>
           </div>
 
           <div id="analysis-health" class="subpanel">
@@ -229,6 +256,11 @@
               <article class="info-panel"><h3>Reading profile</h3><div id="reading-insights" class="detail-list"></div></article>
             </div>
           </div>
+
+          <div id="analysis-stale" class="subpanel hidden"><div class="panel-title-row"><div><h3>Stale manga detector</h3><p class="muted">Find manga with old reading activity or no reading history.</p></div><select id="stale-days"><option value="90">90 days</option><option value="180" selected>180 days</option><option value="365">365 days</option><option value="730">2 years</option></select></div><div id="stale-summary" class="result-meta"></div><div id="stale-list" class="list-stack"></div></div>
+          <div id="analysis-source-health" class="subpanel hidden"><div id="source-health-summary" class="stat-grid"></div><div id="source-health-list" class="list-stack section-spacer"></div></div>
+          <div id="analysis-orphans" class="subpanel hidden"><div id="orphan-summary" class="issue-grid"></div><div id="orphan-list" class="list-stack section-spacer"></div></div>
+          <div id="analysis-repair" class="subpanel hidden"><div class="compare-hero"><div><h3>Safe repair preview</h3><p class="muted">Preview viewer-side cleanup. Nothing changes until you explicitly apply a safe repair.</p></div><button id="apply-safe-repairs" class="primary-btn">Apply safe repairs</button></div><div id="repair-preview" class="list-stack section-spacer"></div><div class="tool-inline-actions"><button id="export-repair-plan" class="outline-btn">Export repair plan JSON</button></div></div>
         </section>
 
         <section id="tools-panel" class="panel-view hidden">
@@ -236,9 +268,20 @@
           <div class="tool-grid">
             <article class="tool-card"><h3>Export JSON</h3><p>Save the decoded Komikku backup in readable JSON.</p><button id="export-json" class="primary-btn">Download JSON</button></article>
             <article class="tool-card"><h3>Export .tachibk</h3><p>Encode the current data with the Komikku protobuf schema and GZIP it again.</p><button id="export-tachibk" class="primary-btn">Download .tachibk</button></article>
+            <article class="tool-card"><h3>Library CSV</h3><p>Export manga, source, progress, status and tracker counts for spreadsheet analysis.</p><button id="export-library-csv" class="primary-btn">Download CSV</button></article>
+            <article class="tool-card"><h3>Health report</h3><p>Export health warnings and duplicate information as CSV or JSON.</p><div class="dual-buttons"><button id="export-health-csv" class="primary-btn">CSV</button><button id="export-health-json" class="outline-btn">JSON</button></div></article>
             <article class="tool-card"><h3>Summary Report</h3><p>Generate a printable backup summary. Use your browser to Save as PDF.</p><button id="summary-report" class="primary-btn">Open report</button></article>
-            <article class="tool-card"><h3>Viewer settings</h3><p>Clear saved theme, sort, view mode and page size preferences.</p><button id="clear-settings" class="outline-btn">Clear settings</button></article>
+            <article class="tool-card"><h3>7 Themes</h3><p>Choose Kirin Night, Light, AMOLED, Ocean, Sakura, Forest or Sepia.</p><button id="open-theme-picker" class="primary-btn">Choose theme</button></article>
+            <article class="tool-card"><h3>Performance mode</h3><p>Reduce animation and heavy rendering for very large backups.</p><select id="performance-mode-select"><option value="auto">Auto</option><option value="on">On</option><option value="off">Off</option></select></article>
+            <article class="tool-card"><h3>Privacy lock</h3><p>Hide the loaded backup instantly. Optional auto-lock can activate after inactivity.</p><div class="dual-buttons"><button id="lock-viewer" class="primary-btn">Lock now</button><select id="auto-lock-select"><option value="0">Auto-lock off</option><option value="5">5 min</option><option value="15">15 min</option><option value="30">30 min</option></select></div></article>
+            <article class="tool-card"><h3>Viewer settings</h3><p>Export or import theme, filters, presets and layout settings. Backup data is not included.</p><div class="dual-buttons"><button id="export-settings" class="primary-btn">Export</button><button id="import-settings" class="outline-btn">Import</button><input id="settings-input" type="file" accept="application/json" hidden></div></article>
+            <article class="tool-card"><h3>Install / Offline</h3><p>Install as a PWA where supported. The app shell and runtime assets are cached after first online load.</p><button id="install-app" class="primary-btn">Install app</button></article>
+            <article class="tool-card"><h3>Clear viewer settings</h3><p>Clear saved theme, sort, presets, layout and privacy preferences.</p><button id="clear-settings" class="outline-btn">Clear settings</button></article>
             <article class="tool-card"><h3>Session privacy</h3><p>Close the loaded backup and remove all in-memory comparison data.</p><button id="clear-session" class="outline-btn">Close backup</button></article>
+          </div>
+          <div class="two-col tools-details">
+            <article class="info-panel"><h3>Backup metadata</h3><div id="backup-metadata" class="detail-list"></div></article>
+            <article class="info-panel"><h3>Keyboard shortcuts</h3><div class="detail-list"><div class="detail-item"><span>Search</span><strong>/</strong></div><div class="detail-item"><span>Dashboard / Library</span><strong>D / G</strong></div><div class="detail-item"><span>Explore / Analyze / Tools</span><strong>E / A / T</strong></div><div class="detail-item"><span>Close modal/menu</span><strong>Esc</strong></div></div></article>
           </div>
           <article class="diagnostic-panel"><h3>Decoder diagnostic</h3><pre id="debug-output"></pre></article>
         </section>
@@ -266,6 +309,27 @@
       <div class="report-actions"><button id="print-report" class="primary-btn">Print / Save PDF</button></div>
       <div id="report-content" class="report-content"></div>
     </article>
+  </div>
+
+  <div id="theme-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="theme-title">
+    <div class="modal-backdrop" data-close-theme></div>
+    <article class="modal-card theme-modal-card">
+      <button class="modal-close" data-close-theme aria-label="Close">×</button>
+      <div class="eyebrow">APPEARANCE</div><h2 id="theme-title">Choose theme</h2>
+      <div id="theme-grid" class="theme-grid">
+        <button class="theme-card" data-theme-choice="night"><span class="theme-preview theme-night"></span><strong>Kirin Night</strong><small>Deep neutral dark</small></button>
+        <button class="theme-card" data-theme-choice="light"><span class="theme-preview theme-light"></span><strong>Cloud Light</strong><small>Soft daylight</small></button>
+        <button class="theme-card" data-theme-choice="amoled"><span class="theme-preview theme-amoled"></span><strong>AMOLED</strong><small>True black</small></button>
+        <button class="theme-card" data-theme-choice="ocean"><span class="theme-preview theme-ocean"></span><strong>Ocean</strong><small>Blue cyan</small></button>
+        <button class="theme-card" data-theme-choice="sakura"><span class="theme-preview theme-sakura"></span><strong>Sakura</strong><small>Rose plum</small></button>
+        <button class="theme-card" data-theme-choice="forest"><span class="theme-preview theme-forest"></span><strong>Forest</strong><small>Emerald dark</small></button>
+        <button class="theme-card" data-theme-choice="sepia"><span class="theme-preview theme-sepia"></span><strong>Sepia</strong><small>Warm paper</small></button>
+      </div>
+    </article>
+  </div>
+
+  <div id="privacy-lock" class="privacy-lock hidden" aria-live="polite">
+    <div class="privacy-lock-card"><div class="brand-mark">K</div><h2>Viewer locked</h2><p>The loaded backup is hidden, but remains only in this browser tab.</p><button id="unlock-viewer" class="primary-btn">Unlock viewer</button></div>
   </div>
 
   <div id="toast" class="toast hidden"></div>

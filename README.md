@@ -1,48 +1,36 @@
-# Kirin Komikku Backup Viewer
+# Kirin Komikku Backup Viewer v1.3.0
 
-A GitHub Pages-friendly, client-side viewer for **Komikku** backup files.
+Client-side viewer and analyzer for Komikku `.tachibk`, raw protobuf, `.proto.gz`, and decoded JSON backups.
 
-## Supported input
+## v1.3.0 highlights
 
-- `.tachibk`
-- `.proto.gz`
-- raw protobuf backups
-- decoded `.json`
+- 7 themes: Kirin Night, Cloud Light, AMOLED, Ocean, Sakura, Forest, Sepia
+- Dashboard, Library, Explore, Analyze and Tools
+- Advanced search + saved/pinned filter presets
+- Category, source, tracker, genre, author and artist explorers
+- Smart collections, top manga, library growth and reading heatmap
+- Tracker name mapping and detailed per-manga tracking cards
+- Chapter search, read/bookmark filter, sort and upload/last-read metadata
+- Backup health, duplicates, stale manga, source health and orphan-data checks
+- Safe repair preview for dangling category references
+- Two-backup comparison with per-manga field differences
+- JSON, `.tachibk`, library CSV, health CSV/JSON and printable summary exports
+- Backup metadata panel
+- Performance mode for large libraries
+- Privacy lock + optional inactivity auto-lock
+- Export/import viewer settings (never includes the loaded backup)
+- Keyboard shortcuts
+- PWA install support and offline caching after an initial successful online load
+- Mobile hamburger navigation and responsive layouts
 
-The loader follows Komikku's backup behavior: it checks for the GZIP magic bytes (`1F 8B`); GZIP data is decompressed first, while non-GZIP data is decoded directly as protobuf.
+## Privacy
 
-## Features
+Backup decoding and analysis happen in the browser. The site does not upload the selected backup.
 
-- Komikku-only UI (no fork selector)
-- Library grid, search and filters
-- Categories, including hidden Komikku categories
-- Manga information and chapter list
-- Reading history / Recently Read
-- Sources and statistics
-- Komikku saved-search/feed counters
-- JSON export
-- `.tachibk` export
-- Responsive desktop/mobile layout
-- Backup processing stays in the browser
+## GitHub Pages
 
-## Deploy to GitHub Pages
+The included workflow deploys the repository root to GitHub Pages. Upload the files to the repository root and push to `main`.
 
-### Option A — GitHub Actions (included)
+## License
 
-1. Create a new GitHub repository.
-2. Upload everything in this folder to the repository root.
-3. Open **Settings → Pages**.
-4. Set **Source** to **GitHub Actions**.
-5. Push to `main`. The included workflow deploys the site.
-
-### Option B — Deploy from branch
-
-You can also set **Settings → Pages → Deploy from a branch → main / (root)**. The site does not require a build step.
-
-## Important
-
-`protobufjs` and `long` are loaded from jsDelivr. `pako` is bundled locally. The Komikku protobuf schema is stored at `schemas/schema-komikku.proto`.
-
-## Credits / License
-
-This project is a derivative/adaptation of [Animeboynz/Mihon-Backup-Viewer](https://github.com/Animeboynz/Mihon-Backup-Viewer), with a Komikku-focused interface and loader. The upstream project is GPL-2.0 licensed. See `LICENSE`.
+This project retains the GPL-2.0 license from the Mihon Backup Viewer-derived implementation.
