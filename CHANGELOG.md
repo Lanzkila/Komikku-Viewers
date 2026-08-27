@@ -2,6 +2,19 @@
 
 All notable changes to **Kirin Komikku Backup Viewer** are documented here.
 
+## [1.3.3] - 2026-08-27
+
+### Fixed
+- Fixed the actual source of the thin blue strips above the Library filter controls.
+- The strips were the `View`, `Card`, and `Per page` controls scrolling underneath the sticky filter layer and peeking through its top edge.
+- Removed sticky positioning from the Library filter row on desktop, tablet, and mobile so the two control rows can no longer overlap.
+- Removed the unnecessary compositing transform from the Library filter row.
+
+### Changed
+- The main application header remains sticky.
+- Library filters now scroll normally with the Library page.
+- Service-worker cache updated to `kirin-komikku-v133`.
+
 ## [1.3.2] - 2026-08-27
 
 ### Fixed
