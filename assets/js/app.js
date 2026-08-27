@@ -12,6 +12,9 @@
     debug: [],
     BackupType: null,
     schemaRoot: null,
+    readerMangaIndex: null,
+    readerUrls: [],
+    readerFitWidth: true,
   };
 
   const $ = (s, root = document) => root.querySelector(s);
@@ -156,6 +159,7 @@
       buildIndexes();
       $('#loader-view').classList.add('hidden');
       $('#app-view').classList.remove('hidden');
+      document.body.classList.add('has-backup');
       $('#backup-name').textContent = file.name;
       $('#backup-summary').textContent = `${data.backupManga.length.toLocaleString()} manga · ${data.backupCategories.length} categories · ${data.backupSources.length} sources`;
       diag(`Komikku backup loaded ✓ · ${data.backupManga.length.toLocaleString()} manga.`);
@@ -329,6 +333,10 @@
             <div><b>Status</b>${esc(displayStatus(m))}</div><div><b>Progress</b>${readCount(m)} / ${m.chapters.length} read</div>
             <div><b>Bookmarks</b>${bookmarkCount(m)}</div><div><b>Tracking</b>${esc(track)}</div>
           </div>
+          <div class="detail-actions">
+            <button class="primary-btn" data-open-reader="${Number(index)}">Open Local Reader</button>
+          </div>
+          <p class="reader-hint">The Komikku backup stores chapter metadata, not manga page images. Reader opens local images, ZIP or CBZ files.</p>
         </div>
       </div>
       ${displayDescription(m)?`<p class="description">${esc(displayDescription(m))}</p>`:''}
@@ -337,6 +345,142 @@
       <div class="chapter-list">${chapters.length ? chapters.map(c => `<div class="chapter-row"><div><strong>${esc(c.name || `Chapter ${c.chapterNumber ?? ''}`)}</strong><small>${c.scanlator?esc(c.scanlator):''}${c.lastPageRead?` · page ${esc(c.lastPageRead)}`:''}</small></div><div class="chapter-flags">${c.read?'<span class="flag read">Read</span>':'<span class="flag">Unread</span>'}${c.bookmark?'<span class="flag bookmark">★</span>':''}</div></div>`).join('') : '<div class="empty-state">No chapters stored in this backup.</div>'}</div>`;
     $('#modal').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+  }
+
+  function naturalCompare(a, b) {
+    return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+  }
+
+  function imageMime(name) {
+    const ext = String(name).split('.').pop().toLowerCase();
+    return ({jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',gif:'image/gif',avif:'image/avif',bmp:'image/bmp'})[ext] || 'application/octet-stream';
+  }
+
+  function isImageName(name) {
+    return /\.(?:jpe?g|png|webp|gif|avif|bmp)$/i.test(String(name));
+  }
+
+  function clearReaderUrls() {
+    state.readerUrls.forEach(url => URL.revokeObjectURL(url));
+    state.readerUrls = [];
+  }
+
+  function zipU16(view, offset) { return view.getUint16(offset, true); }
+  function zipU32(view, offset) { return view.getUint32(offset, true); }
+
+  function findZipEocd(bytes) {
+    const min = Math.max(0, bytes.length - 0xFFFF - 22);
+    for (let i = bytes.length - 22; i >= min; i--) {
+      if (bytes[i] === 0x50 && bytes[i+1] === 0x4b && bytes[i+2] === 0x05 && bytes[i+3] === 0x06) return i;
+    }
+    return -1;
+  }
+
+  function readZipEntries(bytes) {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const eocd = findZipEocd(bytes);
+    if (eocd < 0) throw new Error('ZIP/CBZ directory was not found.');
+    const count = zipU16(view, eocd + 10);
+    let offset = zipU32(view, eocd + 16);
+    const entries = [];
+    const decoder = new TextDecoder();
+
+    for (let n = 0; n < count && offset + 46 <= bytes.length; n++) {
+      if (zipU32(view, offset) !== 0x02014b50) throw new Error('Invalid ZIP central directory.');
+      const method = zipU16(view, offset + 10);
+      const compressedSize = zipU32(view, offset + 20);
+      const uncompressedSize = zipU32(view, offset + 24);
+      const nameLen = zipU16(view, offset + 28);
+      const extraLen = zipU16(view, offset + 30);
+      const commentLen = zipU16(view, offset + 32);
+      const localOffset = zipU32(view, offset + 42);
+      const name = decoder.decode(bytes.slice(offset + 46, offset + 46 + nameLen));
+      entries.push({ name, method, compressedSize, uncompressedSize, localOffset });
+      offset += 46 + nameLen + extraLen + commentLen;
+    }
+    return entries;
+  }
+
+  function extractZipEntry(bytes, entry) {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const o = entry.localOffset;
+    if (zipU32(view, o) !== 0x04034b50) throw new Error(`Invalid ZIP entry: ${entry.name}`);
+    const nameLen = zipU16(view, o + 26);
+    const extraLen = zipU16(view, o + 28);
+    const start = o + 30 + nameLen + extraLen;
+    const compressed = bytes.slice(start, start + entry.compressedSize);
+    if (entry.method === 0) return compressed;
+    if (entry.method === 8) {
+      if (!window.pako?.inflateRaw) throw new Error('Pako inflateRaw is unavailable for ZIP/CBZ reader.');
+      return window.pako.inflateRaw(compressed);
+    }
+    throw new Error(`Unsupported ZIP compression method ${entry.method}.`);
+  }
+
+  async function readerFilesToPages(files) {
+    const list = [...files];
+    if (!list.length) return [];
+    if (list.length === 1 && /\.(?:zip|cbz)$/i.test(list[0].name)) {
+      const bytes = new Uint8Array(await list[0].arrayBuffer());
+      const entries = readZipEntries(bytes)
+        .filter(e => isImageName(e.name) && !e.name.startsWith('__MACOSX/'))
+        .sort((a,b) => naturalCompare(a.name,b.name));
+      const pages = [];
+      for (const entry of entries) {
+        const data = extractZipEntry(bytes, entry);
+        pages.push({ name: entry.name, blob: new Blob([data], {type:imageMime(entry.name)}) });
+      }
+      return pages;
+    }
+    return list.filter(f => f.type.startsWith('image/') || isImageName(f.name))
+      .sort((a,b) => naturalCompare(a.name,b.name))
+      .map(f => ({name:f.name, blob:f}));
+  }
+
+  async function openReaderFiles(files) {
+    try {
+      const pages = await readerFilesToPages(files);
+      clearReaderUrls();
+      const wrap = $('#reader-pages');
+      wrap.innerHTML = '';
+      wrap.classList.toggle('fit-width', state.readerFitWidth);
+      $('#reader-empty').classList.toggle('hidden', pages.length > 0);
+      const m = state.data?.backupManga?.[Number(state.readerMangaIndex)];
+      $('#reader-title').textContent = m ? displayTitle(m) : 'Local Reader';
+      $('#reader-meta').textContent = `${pages.length.toLocaleString()} page${pages.length === 1 ? '' : 's'}`;
+      pages.forEach((page, i) => {
+        const url = URL.createObjectURL(page.blob);
+        state.readerUrls.push(url);
+        const img = document.createElement('img');
+        img.className = 'reader-page';
+        img.src = url;
+        img.alt = `Page ${i + 1}`;
+        img.loading = i < 3 ? 'eager' : 'lazy';
+        img.decoding = 'async';
+        wrap.appendChild(img);
+      });
+      $('#reader-view').classList.remove('hidden');
+      closeModal();
+      document.body.style.overflow = 'hidden';
+      $('#reader-view').scrollTop = 0;
+    } catch (error) {
+      console.error(error);
+      toast(`Reader error: ${error.message}`);
+    } finally {
+      $('#reader-file-input').value = '';
+    }
+  }
+
+  function chooseReaderFiles(index) {
+    state.readerMangaIndex = Number(index);
+    $('#reader-file-input').click();
+  }
+
+  function closeReader() {
+    $('#reader-view').classList.add('hidden');
+    $('#reader-pages').innerHTML = '';
+    clearReaderUrls();
+    document.body.style.overflow = '';
   }
 
   function closeModal() {
@@ -397,7 +541,9 @@
   }
 
   function closeBackup() {
+    closeReader();
     state.data = null; state.fileName = ''; state.filtered = []; state.page = 1;
+    document.body.classList.remove('has-backup');
     $('#app-view').classList.add('hidden');
     $('#loader-view').classList.remove('hidden');
     diag('Ready · choose a Komikku .tachibk backup.');
@@ -428,17 +574,43 @@
     $('#export-json').addEventListener('click', exportJson);
     $('#export-tachibk').addEventListener('click', exportTachibk);
     $('#clear-session').addEventListener('click', closeBackup);
+    $('#reader-file-input').addEventListener('change', e => openReaderFiles(e.target.files));
+    $('#reader-close').addEventListener('click', closeReader);
+    $('#reader-width').addEventListener('click', () => {
+      state.readerFitWidth = !state.readerFitWidth;
+      $('#reader-pages').classList.toggle('fit-width', state.readerFitWidth);
+      $('#reader-width').classList.toggle('active', state.readerFitWidth);
+    });
     document.addEventListener('click', e => {
+      const reader = e.target.closest('[data-open-reader]');
+      if (reader) {
+        e.preventDefault();
+        e.stopPropagation();
+        chooseReaderFiles(reader.dataset.openReader);
+        return;
+      }
       const hit = e.target.closest('[data-manga-index]');
       if (hit) showManga(hit.dataset.mangaIndex);
       if (e.target.closest('[data-close-modal]')) closeModal();
     });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !$('#reader-view').classList.contains('hidden')) closeReader();
+      else if (e.key === 'Escape') closeModal();
+    });
+    const syncThemeButton = () => {
+      const light = document.documentElement.classList.contains('light');
+      $('#theme-toggle').textContent = light ? '☾' : '☀';
+      $('#theme-toggle').title = light ? 'Switch to dark theme' : 'Switch to light theme';
+      $('#theme-toggle').setAttribute('aria-label', $('#theme-toggle').title);
+    };
     $('#theme-toggle').addEventListener('click', () => {
       document.documentElement.classList.toggle('light');
       localStorage.setItem('kirin-komikku-theme', document.documentElement.classList.contains('light') ? 'light' : 'dark');
+      syncThemeButton();
     });
     if (localStorage.getItem('kirin-komikku-theme') === 'light') document.documentElement.classList.add('light');
+    syncThemeButton();
+    $('#reader-width').classList.toggle('active', state.readerFitWidth);
   }
 
   window.addEventListener('DOMContentLoaded', async () => {
