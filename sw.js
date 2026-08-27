@@ -1,4 +1,4 @@
-const CACHE = 'kirin-komikku-v130';
+const CACHE = 'kirin-komikku-v131';
 const SHELL = [
   './', './index.html', './assets/css/app.css', './assets/js/app.js', './assets/vendor/pako.min.js',
   './schemas/schema-komikku.proto', './manifest.webmanifest', './assets/icons/app-icon.svg',
@@ -17,9 +17,33 @@ self.addEventListener('activate', event => {
 });
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
-  event.respondWith(caches.match(event.request).then(hit => hit || fetch(event.request).then(response => {
-    const copy = response.clone();
-    caches.open(CACHE).then(cache => cache.put(event.request, copy)).catch(() => {});
-    return response;
-  }).catch(() => event.request.mode === 'navigate' ? caches.match('./index.html') : Response.error())));
+  const url = new URL(event.request.url);
+  const sameOrigin = url.origin === self.location.origin;
+
+  if (sameOrigin) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          const copy = response.clone();
+          caches.open(CACHE).then(cache => cache.put(event.request, copy)).catch(() => {});
+          return response;
+        })
+        .catch(() =>
+          caches.match(event.request).then(hit =>
+            hit || (event.request.mode === 'navigate' ? caches.match('./index.html') : Response.error())
+          )
+        )
+    );
+    return;
+  }
+
+  event.respondWith(
+    caches.match(event.request).then(hit =>
+      hit || fetch(event.request).then(response => {
+        const copy = response.clone();
+        caches.open(CACHE).then(cache => cache.put(event.request, copy)).catch(() => {});
+        return response;
+      })
+    )
+  );
 });
