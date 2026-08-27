@@ -11,7 +11,7 @@ A client-side **Komikku backup viewer and analyzer** for inspecting `.tachibk` b
 | Project | Kirin Komikku Backup Viewer |
 | Repository | `Lanzkila/Komikku-Viewers` |
 | Owner | Lanzkila |
-| Current build | v1.3.2 Sticky Gap Fix |
+| Current build | v1.3.3 Filter Overlap Fix |
 | Deployment | GitHub Pages |
 | Live site | https://lanzkila.github.io/Komikku-Viewers/ |
 | Default branch | `main` |
