@@ -1,4 +1,4 @@
-const CACHE = 'kirin-komikku-v132';
+const CACHE = 'kirin-komikku-v133';
 const SHELL = [
   './', './index.html', './assets/css/app.css', './assets/js/app.js', './assets/vendor/pako.min.js',
   './schemas/schema-komikku.proto', './manifest.webmanifest', './assets/icons/app-icon.svg',
