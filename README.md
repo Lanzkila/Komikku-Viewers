@@ -11,7 +11,7 @@ A client-side **Komikku backup viewer and analyzer** for inspecting `.tachibk` b
 | Project | Kirin Komikku Backup Viewer |
 | Repository | `Lanzkila/Komikku-Viewers` |
 | Owner | Lanzkila |
-| Current build | v1.3.0 Ultimate Viewer |
+| Current build | v1.3.2 Sticky Gap Fix |
 | Deployment | GitHub Pages |
 | Live site | https://lanzkila.github.io/Komikku-Viewers/ |
 | Default branch | `main` |
@@ -137,7 +137,7 @@ Comparison data can also be exported as JSON.
 
 ## Themes
 
-v1.3.0 includes seven themes:
+v1.3.x includes seven themes:
 
 1. Kirin Night
 2. Cloud Light
@@ -216,6 +216,10 @@ This project is a static application built with HTML, CSS, and JavaScript. Backu
 There is no required application backend for normal viewer operation.
 
 For very large backups, Performance Mode reduces unnecessary UI work and keeps rendering paginated instead of attempting to display the complete library at once.
+
+## Changelog
+
+See [`CHANGELOG.md`](./CHANGELOG.md) for version history and notable fixes.
 
 ## Credits
 
