@@ -20,7 +20,7 @@
         <span><strong>Kirin Komikku Viewer</strong><small>Viewer + Analyzer · client-side</small></span>
       </button>
 
-      <nav class="topnav" aria-label="Primary navigation">
+      <nav id="primary-nav" class="topnav" aria-label="Primary navigation">
         <button class="nav-btn active" data-view="dashboard"><span class="nav-icon">⌂</span><span>Dashboard</span></button>
         <button class="nav-btn" data-view="library"><span class="nav-icon">▦</span><span>Library</span></button>
         <button class="nav-btn" data-view="explore"><span class="nav-icon">⌘</span><span>Explore</span></button>
@@ -29,6 +29,7 @@
       </nav>
 
       <div class="top-actions">
+        <button id="mobile-menu-toggle" class="icon-btn mobile-menu-toggle" type="button" title="Open menu" aria-label="Open menu" aria-controls="primary-nav" aria-expanded="false">☰</button>
         <button id="theme-toggle" class="icon-btn" title="Toggle theme" aria-label="Toggle theme">☼</button>
         <button id="new-backup" class="outline-btn">New backup</button>
       </div>
