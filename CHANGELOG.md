@@ -2,6 +2,16 @@
 
 All notable changes to **Kirin Komikku Backup Viewer** are documented here.
 
+## [1.3.2] - 2026-08-27
+
+### Fixed
+- Fixed the remaining thin blue/card strip visible between the sticky header and library filters.
+- Corrected the desktop/tablet sticky filter offset from `94px` to the actual `82px` header height.
+- Added an opaque edge to the sticky filter layer so library cards cannot bleed through at the boundary.
+
+### Changed
+- Service-worker cache updated to `kirin-komikku-v132` so the corrected CSS is fetched after deployment.
+
 ## [1.3.1] - 2026-08-27
 
 ### Fixed
