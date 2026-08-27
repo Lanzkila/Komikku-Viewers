@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="description" content="Client-side Komikku backup viewer and analyzer for .tachibk files.">
-  <meta name="application-name" content="Kirin Komikku Viewer">
+  <meta name="description" content="Client-side Komikku and Mihon backup viewer and analyzer for .tachibk files.">
+  <meta name="application-name" content="Kirin Backup Viewer">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./assets/icons/app-icon.svg" type="image/svg+xml">
-  <title>Kirin Komikku Backup Viewer</title>
+  <title>Kirin Backup Viewer</title>
   <link rel="stylesheet" href="./assets/css/app.css">
   <script defer src="https://cdn.jsdelivr.net/npm/long@5.2.3/umd/index.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/protobufjs@7.5.4/dist/protobuf.min.js"></script>
@@ -23,7 +23,7 @@
     <header class="topbar">
       <button class="brand" data-nav="home" aria-label="Home">
         <span class="brand-mark">K</span>
-        <span><strong>Kirin Komikku Viewer</strong><small>Viewer + Analyzer · client-side</small></span>
+        <span><strong>Kirin Backup Viewer</strong><small>Komikku · Mihon · client-side</small></span>
       </button>
 
       <nav id="primary-nav" class="topnav" aria-label="Primary navigation">
@@ -44,13 +44,25 @@
     <main>
       <section id="loader-view" class="loader-grid">
         <article class="hero-card">
-          <div class="eyebrow">KOMIKKU BACKUP VIEWER · ULTIMATE BUILD</div>
-          <h1>Inspect your Komikku backup without uploading it anywhere.</h1>
-          <p class="lead">Open <code>.tachibk</code>, raw protobuf, <code>.proto.gz</code>, or decoded JSON directly in your browser. Analysis stays local to this tab.</p>
+          <div class="eyebrow">KIRIN BACKUP VIEWER · v1.4.0</div>
+          <h1>Inspect your manga backup directly in the browser.</h1>
+          <p class="lead">Choose the backup app first, then open <code>.tachibk</code>, raw protobuf, <code>.proto.gz</code>, or decoded JSON. Everything is processed locally in this tab.</p>
 
-          <div id="drop-zone" class="drop-zone" tabindex="0" role="button" aria-label="Choose a Komikku backup file">
+          <div class="backup-app-picker" aria-label="Choose backup app">
+            <span class="picker-label">Backup app</span>
+            <div class="backup-app-options" role="radiogroup" aria-label="Backup app">
+              <button class="backup-app-btn active" type="button" data-backup-flavor="komikku" role="radio" aria-checked="true">
+                <span class="backup-app-mark">K</span><span><strong>Komikku</strong><small>Default</small></span>
+              </button>
+              <button class="backup-app-btn" type="button" data-backup-flavor="mihon" role="radio" aria-checked="false">
+                <span class="backup-app-mark">M</span><span><strong>Mihon</strong><small>.tachibk backup</small></span>
+              </button>
+            </div>
+          </div>
+
+          <div id="drop-zone" class="drop-zone" tabindex="0" role="button" aria-label="Choose a backup file">
             <div class="drop-icon">⇧</div>
-            <div class="drop-copy"><strong>Drop backup here</strong><span>.tachibk · .proto.gz · .json</span></div>
+            <div class="drop-copy"><strong id="drop-title">Drop Komikku backup here</strong><span>.tachibk · .proto.gz · .json</span></div>
             <button id="choose-file" class="primary-btn">Choose file</button>
             <input id="file-input" type="file" hidden>
           </div>
@@ -59,23 +71,46 @@
 
         <aside class="privacy-card">
           <div class="diamond">◇</div>
-          <h2>Viewer + Analyzer</h2>
-          <p>GitHub Pages hosts only the viewer files. Your backup is decoded and analyzed in the current browser tab.</p>
+          <h2>Private by design</h2>
+          <p>GitHub Pages hosts only the viewer. Your selected backup is decoded and analyzed in the current browser tab.</p>
           <ul>
+            <li>No custom upload server</li>
+            <li>Komikku and Mihon schema support</li>
             <li>Library, chapters and tracking details</li>
-            <li>Backup health and duplicate detection</li>
-            <li>Categories, sources and reading activity</li>
-            <li>Compare two backups locally</li>
-            <li>JSON / .tachibk / report export</li>
+            <li>Analyzer, compare and report tools</li>
+            <li>JSON / .tachibk / CSV export</li>
           </ul>
         </aside>
+
+        <section class="home-info-grid home-wide" aria-label="Viewer information">
+          <article class="home-info-card">
+            <span class="home-card-icon">①</span>
+            <h3>Quick Start</h3>
+            <p>Select <strong>Komikku</strong> or <strong>Mihon</strong>, choose your backup, then browse Library, Explore, Analyze and Tools.</p>
+          </article>
+          <article class="home-info-card">
+            <span class="home-card-icon">◫</span>
+            <h3>Supported Backup</h3>
+            <p>Only two backup apps are included: <strong>Komikku</strong> and <strong>Mihon</strong>. No extra fork selector clutter.</p>
+          </article>
+          <article class="home-info-card">
+            <span class="home-card-icon">◎</span>
+            <h3>Feature Snapshot</h3>
+            <p>Tracking, chapter metadata, health checks, duplicates, source insights, heatmap, compare, CSV and printable reports.</p>
+          </article>
+          <article class="home-info-card">
+            <span class="home-card-icon">↗</span>
+            <h3>Project</h3>
+            <p><strong>v1.4.0 Dual Backup</strong><br><a href="https://github.com/Lanzkila/Komikku-Viewers" target="_blank" rel="noopener">GitHub repository</a> · <a href="https://github.com/Lanzkila/Komikku-Viewers/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a></p>
+          </article>
+        </section>
       </section>
 
       <section id="app-view" class="app-view hidden">
         <div class="toolbar">
           <div class="toolbar-copy">
             <div class="eyebrow">CURRENT BACKUP</div>
-            <h2 id="backup-name">Komikku backup</h2>
+            <h2 id="backup-name">Backup</h2>
             <p id="backup-summary" class="muted"></p>
           </div>
           <div class="toolbar-actions">
@@ -289,8 +324,8 @@
     </main>
 
     <footer>
-      <span>Kirin Komikku Backup Viewer</span>
-      <span>Viewer + Analyzer · local browser processing</span>
+      <span>© <span id="footer-year"></span> Kirin Backup Viewer</span>
+      <span>Komikku + Mihon · Viewer + Analyzer · GPL-2.0</span>
     </footer>
   </div>
 
