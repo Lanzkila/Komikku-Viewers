@@ -1,12 +1,12 @@
 {
-  "name": "Kirin Komikku Backup Viewer",
-  "short_name": "Komikku Viewer",
+  "name": "Kirin Backup Viewer",
+  "short_name": "Kirin Viewer",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0b0d12",
   "theme_color": "#0b0d12",
-  "description": "Client-side Komikku .tachibk backup viewer and analyzer.",
+  "description": "Client-side Komikku and Mihon .tachibk backup viewer and analyzer.",
   "icons": [
     {
       "src": "./assets/icons/app-icon.svg",
