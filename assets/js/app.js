@@ -14,6 +14,7 @@
     autoLock: 0,
     presets: [],
     lastView: 'dashboard',
+    backupFlavor: 'komikku',
   };
 
   const state = {
@@ -25,8 +26,8 @@
     page: 1,
     pageSize: 30,
     debug: [],
-    BackupType: null,
-    schemaRoot: null,
+    schemaCache: new Map(),
+    loadedFlavor: null,
     quickFilter: '',
     exploreTab: 'categories',
     analysisTab: 'health',
@@ -64,6 +65,10 @@
   const THEMES = {
     night:{name:'Kirin Night',meta:'#0b0d12'}, light:{name:'Cloud Light',meta:'#f5f7fb'}, amoled:{name:'AMOLED',meta:'#000000'},
     ocean:{name:'Ocean',meta:'#07131d'}, sakura:{name:'Sakura',meta:'#180e17'}, forest:{name:'Forest',meta:'#08140f'}, sepia:{name:'Sepia',meta:'#f1e6cf'},
+  };
+  const BACKUP_APPS = {
+    komikku:{name:'Komikku',schema:'schema-komikku.proto',exportBase:'komikku-backup'},
+    mihon:{name:'Mihon',schema:'schema-mihon.proto',exportBase:'mihon-backup'},
   };
   const DAY = 86400000;
 
@@ -141,23 +146,57 @@
     armAutoLock();
   }
 
-  async function ensureSchema() {
-    if (state.BackupType) return state.BackupType;
+  function selectedFlavor() {
+    const flavor = state.loadedFlavor || state.settings.backupFlavor || 'komikku';
+    return flavor in BACKUP_APPS ? flavor : 'komikku';
+  }
+
+  function updateBackupFlavorUi() {
+    const flavor = state.settings.backupFlavor in BACKUP_APPS ? state.settings.backupFlavor : 'komikku';
+    const info = BACKUP_APPS[flavor];
+    $$('[data-backup-flavor]').forEach(btn => {
+      const active = btn.dataset.backupFlavor === flavor;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-checked', String(active));
+    });
+    const title = $('#drop-title');
+    if (title) title.textContent = `Drop ${info.name} backup here`;
+  }
+
+  async function setBackupFlavor(flavor) {
+    if (!(flavor in BACKUP_APPS) || state.data) return;
+    saveSettings({backupFlavor:flavor});
+    state.loadedFlavor = null;
+    updateBackupFlavorUi();
+    const info = BACKUP_APPS[flavor];
+    diag(`Loading ${info.name} schema…`);
+    try {
+      await ensureSchema(flavor);
+      diag(`Ready ✓ · ${info.name} schema loaded · GZIP/raw protobuf supported.`);
+    } catch (error) {
+      diag(error.message, true);
+    }
+  }
+
+  async function ensureSchema(flavor = selectedFlavor()) {
+    if (!(flavor in BACKUP_APPS)) flavor = 'komikku';
+    if (state.schemaCache.has(flavor)) return state.schemaCache.get(flavor);
     if (!window.protobuf) throw new Error('ProtobufJS did not load. Check your internet connection, then reload the page.');
     if (window.Long && protobuf.util) {
       protobuf.util.Long = window.Long;
       protobuf.configure();
     }
-    const schemaUrl = new URL('./schemas/schema-komikku.proto', document.baseURI).href;
-    log(`Loading Komikku schema: ${schemaUrl}`);
+    const info = BACKUP_APPS[flavor];
+    const schemaUrl = new URL(`./schemas/${info.schema}`, document.baseURI).href;
+    log(`Loading ${info.name} schema: ${schemaUrl}`);
     const response = await fetch(schemaUrl, { cache: 'no-store' });
-    if (!response.ok) throw new Error(`Could not load schema-komikku.proto (HTTP ${response.status}).`);
+    if (!response.ok) throw new Error(`Could not load ${info.schema} (HTTP ${response.status}).`);
     const schemaText = await response.text();
     const parsed = protobuf.parse(schemaText, { keepCase: true });
-    state.schemaRoot = parsed.root;
-    state.BackupType = parsed.root.lookupType('Backup');
-    log('Komikku protobuf schema loaded.');
-    return state.BackupType;
+    const type = parsed.root.lookupType('Backup');
+    state.schemaCache.set(flavor, type);
+    log(`${info.name} protobuf schema loaded.`);
+    return type;
   }
 
   function isJsonBytes(bytes) {
@@ -195,7 +234,9 @@
       return normalizeData(JSON.parse(text));
     }
 
-    const Backup = await ensureSchema();
+    const flavor = selectedFlavor();
+    const appInfo = BACKUP_APPS[flavor];
+    const Backup = await ensureSchema(flavor);
     let payload = bytes;
     if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
       meta.format = 'GZIP protobuf';
@@ -205,10 +246,10 @@
       log(`${primary ? 'Primary' : 'Compare'} GZIP OK · ${formatBytes(payload.length)} protobuf payload.`);
     } else log(`${primary ? 'Primary' : 'Compare'} has no GZIP header · decoding as raw protobuf.`);
 
-    if (primary) diag('Decoding Komikku protobuf…');
+    if (primary) diag(`Decoding ${appInfo.name} protobuf…`);
     let message;
     try { message = Backup.decode(payload); }
-    catch (error) { throw new Error(`Komikku protobuf decode failed: ${error.message}`); }
+    catch (error) { throw new Error(`${appInfo.name} protobuf decode failed: ${error.message}`); }
     const data = Backup.toObject(message, { longs:String, enums:String, bytes:String, defaults:false, arrays:true, objects:true });
     if (primary) state.primaryMeta = meta;
     log(`${primary ? 'Primary' : 'Compare'} protobuf OK · ${asArray(data.backupManga).length} manga.`);
@@ -242,6 +283,7 @@
     try {
       const data = await decodeBackupFile(file, { primary: true });
       state.data = data;
+      state.loadedFlavor = state.settings.backupFlavor in BACKUP_APPS ? state.settings.backupFlavor : 'komikku';
       state.fileName = file.name;
       state.compareData = null;
       state.compareFileName = '';
@@ -254,8 +296,9 @@
       $('#app-view').classList.remove('hidden');
       document.body.classList.add('has-backup');
       $('#backup-name').textContent = file.name;
-      $('#backup-summary').textContent = `${data.backupManga.length.toLocaleString()} manga · ${data.backupCategories.length} categories · ${data.backupSources.length} sources`;
-      diag(`Komikku backup loaded ✓ · ${data.backupManga.length.toLocaleString()} manga.`);
+      const loadedApp = BACKUP_APPS[state.loadedFlavor];
+      $('#backup-summary').textContent = `${loadedApp.name} · ${data.backupManga.length.toLocaleString()} manga · ${data.backupCategories.length} categories · ${data.backupSources.length} sources`;
+      diag(`${loadedApp.name} backup loaded ✓ · ${data.backupManga.length.toLocaleString()} manga.`);
       populateFilters();
       applySavedSettings();
       updateQuickChipUi();
@@ -961,7 +1004,7 @@
   function unlockViewer(){document.body.classList.remove('viewer-locked');$('#privacy-lock').classList.add('hidden');document.body.style.overflow='';armAutoLock();}
   function armAutoLock(){clearTimeout(state.lockTimer);const min=Number(state.settings.autoLock||0);if(min>0&&state.data&&!document.body.classList.contains('viewer-locked'))state.lockTimer=setTimeout(lockViewer,min*60000);}
 
-  function exportViewerSettings(){const payload={app:'Kirin Komikku Viewer',version:'1.3.0',settings:state.settings};downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),'kirin-komikku-viewer-settings.json');}
+  function exportViewerSettings(){const payload={app:'Kirin Backup Viewer',version:'1.4.0',settings:state.settings};downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),'kirin-backup-viewer-settings.json');}
   async function importViewerSettings(file){if(!file)return;try{const obj=JSON.parse(await file.text());const incoming=obj.settings||obj;if(!incoming||typeof incoming!=='object')throw new Error('Invalid settings file');state.settings={...defaultSettings,...incoming};localStorage.setItem(SETTINGS_KEY,JSON.stringify(state.settings));applySavedSettings();if(state.data)applyFilters(true);toast('Viewer settings imported');}catch(e){toast(`Import failed: ${e.message}`);}finally{$('#settings-input').value='';}}
 
   async function installApp(){if(state.installPrompt){state.installPrompt.prompt();await state.installPrompt.userChoice;state.installPrompt=null;return;}toast('Use browser “Add to Home screen” if install is not offered.');}
@@ -969,19 +1012,22 @@
 
   async function exportJson() {
     if (!state.data) return;
-    downloadBlob(new Blob([JSON.stringify(state.data, null, 2)], {type:'application/json'}), datedName('komikku-backup', 'json'));
+    const info = BACKUP_APPS[selectedFlavor()];
+    downloadBlob(new Blob([JSON.stringify(state.data, null, 2)], {type:'application/json'}), datedName(info.exportBase, 'json'));
   }
 
   async function exportTachibk() {
     if (!state.data) return;
     try {
-      const Backup = await ensureSchema();
+      const flavor = selectedFlavor();
+      const info = BACKUP_APPS[flavor];
+      const Backup = await ensureSchema(flavor);
       const verify = Backup.verify(Backup.fromObject(state.data));
       if (verify) log(`Verify warning: ${verify}`);
       const encoded = Backup.encode(Backup.fromObject(state.data)).finish();
       const zipped = window.pako?.gzip ? window.pako.gzip(encoded) : await gzipNative(encoded);
-      downloadBlob(new Blob([zipped], {type:'application/octet-stream'}), datedName('komikku-backup', 'tachibk'));
-      toast('Komikku .tachibk exported');
+      downloadBlob(new Blob([zipped], {type:'application/octet-stream'}), datedName(info.exportBase, 'tachibk'));
+      toast(`${info.name} .tachibk exported`);
     } catch (error) {
       console.error(error);
       log(`Export failed: ${error.message}`);
@@ -1037,10 +1083,10 @@
 
   function closeBackup() {
     setMobileMenu(false);
-    state.data = null; state.fileName = ''; state.filtered = []; state.page = 1; state.compareData=null; state.diff=null; state.compareFileName='';
+    state.data = null; state.loadedFlavor = null; state.fileName = ''; state.filtered = []; state.page = 1; state.compareData=null; state.diff=null; state.compareFileName='';
     state.cache={health:null,duplicates:null,activity:null,searchIndex:null}; state.quickFilter=''; state.primaryMeta=null; state.repairPlan=null; clearTimeout(state.lockTimer);
     $('#app-view').classList.add('hidden'); $('#loader-view').classList.remove('hidden'); document.body.classList.remove('has-backup');
-    closeModal(); closeReport(); closeThemePicker(); unlockViewer(); diag('Ready · choose a Komikku .tachibk backup.'); window.scrollTo({top:0,behavior:'smooth'});
+    closeModal(); closeReport(); closeThemePicker(); unlockViewer(); updateBackupFlavorUi(); const info=BACKUP_APPS[state.settings.backupFlavor]||BACKUP_APPS.komikku; diag(`Ready · choose a ${info.name} .tachibk backup.`); window.scrollTo({top:0,behavior:'smooth'});
   }
 
   function clearViewerSettings() {
@@ -1049,6 +1095,7 @@
 
   function bind() {
     $('#choose-file').addEventListener('click', e=>{e.stopPropagation();$('#file-input').click();});
+    $$('[data-backup-flavor]').forEach(btn=>btn.addEventListener('click',()=>setBackupFlavor(btn.dataset.backupFlavor)));
     $('#new-backup').addEventListener('click',()=>state.data?closeBackup():$('#file-input').click()); $('#open-another').addEventListener('click',()=>$('#file-input').click()); $('#file-input').addEventListener('change',e=>openFile(e.target.files?.[0]));
     $('#mobile-menu-toggle').addEventListener('click',e=>{e.stopPropagation();setMobileMenu(!document.body.classList.contains('mobile-menu-open'));});
     const dz=$('#drop-zone'); dz.addEventListener('click',e=>{if(!e.target.closest('button'))$('#file-input').click();}); dz.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('#file-input').click();}}); ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('drag');})); ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('drag');})); dz.addEventListener('drop',e=>openFile(e.dataTransfer.files?.[0]));
@@ -1082,8 +1129,11 @@
   }
 
   window.addEventListener('DOMContentLoaded', async () => {
-    bind(); applySavedSettings(); registerPwa();
-    try { await ensureSchema(); diag('Ready ✓ · Komikku schema loaded · GZIP/raw protobuf supported.'); }
+    bind(); applySavedSettings(); registerPwa(); updateBackupFlavorUi();
+    const year = $('#footer-year'); if (year) year.textContent = String(new Date().getFullYear());
+    const flavor = state.settings.backupFlavor in BACKUP_APPS ? state.settings.backupFlavor : 'komikku';
+    const info = BACKUP_APPS[flavor];
+    try { await ensureSchema(flavor); diag(`Ready ✓ · ${info.name} schema loaded · GZIP/raw protobuf supported.`); }
     catch (error) { diag(error.message, true); }
   });
 })();
