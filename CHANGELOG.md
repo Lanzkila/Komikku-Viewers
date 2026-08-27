@@ -1,6 +1,14 @@
 # Changelog
 
-All notable changes to **Kirin Komikku Backup Viewer** are documented here.
+All notable changes to **Kirin Backup Viewer** are documented here.
+
+## [1.4.0] - 2026-08-27
+
+### Added
+- Added a simple two-option backup selector on Home: **Komikku** and **Mihon** only.
+- Added Mihon protobuf schema support via `schemas/schema-mihon.proto`.
+- Added Home Quick Start, Supported Backup, Feature Snapshot, and Project/Changelog cards.
+- Added dynamic footer year using the visitor's browser date.
 
 ## [1.3.3] - 2026-08-27
 
