@@ -736,6 +736,18 @@
     state.modalMangaIndex = null;
   }
 
+  function setMobileMenu(open) {
+    const btn = $('#mobile-menu-toggle');
+    if (!btn) return;
+    const mobile = window.matchMedia('(max-width: 1050px)').matches;
+    const next = Boolean(open && mobile && state.data);
+    document.body.classList.toggle('mobile-menu-open', next);
+    btn.setAttribute('aria-expanded', String(next));
+    btn.setAttribute('aria-label', next ? 'Close menu' : 'Open menu');
+    btn.setAttribute('title', next ? 'Close menu' : 'Open menu');
+    btn.textContent = next ? '×' : '☰';
+  }
+
   function switchView(name) {
     if (!state.data) return;
     $$('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === name));
@@ -745,6 +757,7 @@
     if (name === 'explore') switchExploreTab(state.exploreTab);
     if (name === 'analyze') switchAnalysisTab(state.analysisTab);
     if (name === 'tools') $('#debug-output').textContent = state.debug.join('\n');
+    setMobileMenu(false);
     window.scrollTo({top:0,behavior:'smooth'});
   }
 
@@ -826,6 +839,7 @@
   }
 
   function closeBackup() {
+    setMobileMenu(false);
     state.data = null; state.fileName = ''; state.filtered = []; state.page = 1; state.compareData=null; state.diff=null; state.compareFileName='';
     state.cache={health:null,duplicates:null,activity:null}; state.quickFilter='';
     $('#app-view').classList.add('hidden'); $('#loader-view').classList.remove('hidden'); document.body.classList.remove('has-backup');
@@ -846,6 +860,10 @@
     $('#new-backup').addEventListener('click', () => state.data ? closeBackup() : $('#file-input').click());
     $('#open-another').addEventListener('click', () => $('#file-input').click());
     $('#file-input').addEventListener('change', e => openFile(e.target.files?.[0]));
+    $('#mobile-menu-toggle').addEventListener('click', e => {
+      e.stopPropagation();
+      setMobileMenu(!document.body.classList.contains('mobile-menu-open'));
+    });
 
     const dz = $('#drop-zone');
     dz.addEventListener('click', e => { if (!e.target.closest('button')) $('#file-input').click(); });
@@ -886,6 +904,7 @@
     $('#clear-session').addEventListener('click', closeBackup);
 
     document.addEventListener('click', e => {
+      if (document.body.classList.contains('mobile-menu-open') && !e.target.closest('#primary-nav') && !e.target.closest('#mobile-menu-toggle')) setMobileMenu(false);
       const hit = e.target.closest('[data-manga-index]');
       if (hit) showManga(hit.dataset.mangaIndex);
       const modalTab=e.target.closest('[data-modal-tab]'); if(modalTab) switchModalTab(modalTab.dataset.modalTab);
@@ -897,7 +916,9 @@
       if (e.target.closest('[data-close-modal]')) closeModal();
       if (e.target.closest('[data-close-report]')) closeReport();
     });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeReport(); } });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { setMobileMenu(false); closeModal(); closeReport(); } });
+
+    window.addEventListener('resize', () => { if (!window.matchMedia('(max-width: 1050px)').matches) setMobileMenu(false); });
 
     $('#theme-toggle').addEventListener('click', () => {
       document.documentElement.classList.toggle('light');
