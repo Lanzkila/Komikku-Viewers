@@ -2,6 +2,22 @@
 
 All notable changes to **Kirin Backup Viewer** are documented here.
 
+## [1.5.7] - 2026-08-28
+
+### Fixed
+- Fixed the `×` button alignment for the Manga Details modal.
+- Fixed the same `×` alignment issue for the report modal, theme modal, and Quick Preview drawer.
+- Modal-style close buttons now use a dedicated centered glyph wrapper instead of relying on the browser font baseline.
+- Updated app/service-worker cache to `v157`.
+
+## [1.5.6] - 2026-08-28
+
+### Fixed
+- Fixed the Notification Center header `×` button beside `Clear all`.
+- The close button now uses a fixed square `34×34` box so it matches the header controls instead of collapsing to the glyph height.
+- Centered the header `×` without the previous vertical optical offset.
+- Updated app/service-worker cache to `v156`.
+
 ## [1.5.5] - 2026-08-28
 
 ### Fixed
