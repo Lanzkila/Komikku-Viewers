@@ -2,6 +2,37 @@
 
 All notable changes to **Kirin Backup Viewer** are documented here.
 
+## [1.5.4] - 2026-08-28
+
+### Fixed
+- Fixed Health Check card labels/status text overlapping on narrow cards.
+- Corrected Komikku/Mihon category reference handling: `BackupManga.categories` is resolved against `BackupCategory.order`, not the database category ID.
+- This removes false `Broken category refs` warnings and prevents Repair Preview from treating valid category-order references as broken.
+- `No chapters` is now treated as data completeness information rather than a structural backup error, because chapter lists can legitimately be absent.
+
+### Added
+- Added Explore → **Feeds** with a Komikku Feed Inspector.
+- Added Analyze → **Feed Health** for duplicate feed definitions, saved-search source mismatches, blank saved-search names, and informational feed-only source references.
+- Added an explicit note that Komikku `BackupFeed` has no library-category reference.
+- Added floating **Back to top** and **Go to bottom** buttons for desktop and mobile.
+
+### Changed
+- Health score now focuses on structural consistency instead of heavily penalizing optional chapter data.
+- Service-worker/app asset cache updated to `v154`.
+
+## [1.5.3] - 2026-08-28
+
+### Fixed
+- Fixed Notification Center assets remaining stale after an update by adding versioned cache-busting to the app CSS, JavaScript, manifest, and service worker registration.
+- Opening Notification Center now marks the current notification IDs as seen immediately.
+- The red notification badge no longer reappears when the same Health/Quality notifications are rebuilt.
+- Clicking a notification now reliably opens its Analyze destination.
+- Forced `Clear all` and each notification `×` delete button to remain visible on desktop and mobile.
+
+### Changed
+- A red badge appears again only when a genuinely new notification ID is created during the current backup session.
+- Service-worker cache updated to `kirin-backup-v153`.
+
 ## [1.5.2] - 2026-08-28
 
 ### Fixed
