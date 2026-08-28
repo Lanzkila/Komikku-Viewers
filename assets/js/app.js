@@ -53,6 +53,10 @@
     lockTimer: null,
     chapterUi: { search: '', filter: 'all', sort: 'number-desc' },
     notifications: [],
+    notificationUnread: 0,
+    notificationSignature: '',
+    notificationSeenSignature: '',
+    dismissedNotifications: new Set(),
     commandIndex: 0,
     commandResults: [],
     previewMangaIndex: null,
@@ -86,19 +90,16 @@
     mihon:{name:'Mihon',schema:'schema-mihon.proto',exportBase:'mihon-backup'},
   };
   const DAY = 86400000;
-  const VERSION = '1.5.0';
+  const VERSION = '1.5.2';
   const DASHBOARD_WIDGETS = {health:'Backup health',snapshot:'Library snapshot',recent:'Recently read',vault:'Backup Vault',charts:'Activity trends',quality:'Library Quality',tracking:'Tracker Coverage',sources:'Source Reliability',persona:'Reading Persona',milestones:'Milestones',toplists:'Top Lists'};
   const CHANGELOG_SUMMARY = [
-    'Premium Command Dashboard with draggable/pinnable widgets',
-    'Command palette and universal search (Ctrl+K)',
-    'Notification Center, smart status and health recommendations',
-    'Quick Preview drawer and premium manga details',
-    'Showcase library mode, Focus Mode and Presentation Mode',
-    'Accent customizer, glass/solid surfaces and ambient background',
-    'Skeleton/progressive backup loading, mini charts and animated stats',
-    'Migration Assistant, Library Quality Score, tracker/source coverage',
-    'Reading Persona, milestones, Top Lists and Year in Review',
-    'Premium HTML report, share-safe report, accessibility and session security'
+    'Notification drawer no longer covers the desktop header',
+    'Notification red badge is marked read as soon as Status Center is opened',
+    'Clear notifications one-by-one or clear all',
+    'Delete a manga from Quick Preview or full Manga Details',
+    'Delete current filtered results or all manga from Tools → Danger Zone',
+    'All manga deletion stays in memory until a new backup is exported',
+    'Dashboard Milestones gap fix from v1.5.1 is retained'
   ];
 
   function loadSettings() {
@@ -318,6 +319,11 @@
       state.compareData = null;
       state.compareFileName = '';
       state.diff = null;
+      state.notifications = [];
+      state.notificationUnread = 0;
+      state.notificationSignature = '';
+      state.notificationSeenSignature = '';
+      state.dismissedNotifications.clear();
       state.cache = { health: null, duplicates: null, activity: null, searchIndex: null };
       state.quickFilter = '';
       state.page = 1;
@@ -837,7 +843,7 @@
     const plan=state.repairPlan||computeRepairPlan(); if(!plan.changes.length){toast('No safe repairs to apply');return;}
     if(!confirm(`Apply ${plan.changes.length} safe category-reference repair${plan.changes.length===1?'':'s'} to the in-memory backup?`))return;
     plan.changes.forEach(x=>{const m=state.data.backupManga[x.index];if(m)m.categories=m.categories.filter(id=>!x.remove.includes(key64(id)));});
-    state.cache={health:null,duplicates:null,activity:null,searchIndex:null}; state.notifications=[]; renderNotifications(); buildIndexes(); populateFilters(); renderRepairPreview(); renderDashboard(); toast('Safe repairs applied in memory');
+    state.cache={health:null,duplicates:null,activity:null,searchIndex:null}; state.notifications=[]; state.notificationUnread=0; state.notificationSignature=''; state.notificationSeenSignature=''; state.dismissedNotifications.clear(); renderNotifications(); buildIndexes(); populateFilters(); renderRepairPreview(); renderDashboard(); toast('Safe repairs applied in memory');
   }
 
   function exportRepairPlan() { const plan=state.repairPlan||computeRepairPlan(); downloadBlob(new Blob([JSON.stringify(plan,null,2)],{type:'application/json'}),datedName('kirin-repair-plan','json')); }
@@ -942,7 +948,7 @@
     const trackingHtml=m.tracking.length?m.tracking.map(t=>{const info=trackerInfo(t.syncId);return `<div class="tracking-card detailed-tracker"><span class="tracker-logo">${esc(info.mark)}</span><div><strong>${esc(info.name)} · ${esc(t.title||displayTitle(m))}</strong><small>Progress ${esc(t.lastChapterRead??0)} / ${esc(t.totalChapters??'—')} · Score ${esc(t.score??'—')} · Status ${esc(t.status??'—')}</small><small>Started ${trackerDate(t.startedReadingDate)} · Finished ${trackerDate(t.finishedReadingDate)}${t.private?' · Private':''}</small>${t.trackingUrl?`<a class="tracker-link" href="${esc(t.trackingUrl)}" target="_blank" rel="noopener noreferrer">Open tracker ↗</a>`:''}</div></div>`}).join(''):'<div class="empty-state">No tracking entries.</div>';
     const mangaLink=/^https?:\/\//i.test(m.url||'')?`<a class="source-open-link" href="${esc(m.url)}" target="_blank" rel="noopener noreferrer">Open source page ↗</a>`:'';
     const cover=displayCover(m); const pct=m.chapters.length?Math.round(readCount(m)/m.chapters.length*100):0;
-    $('#modal-content').innerHTML=`<div class="detail-hero premium-detail-hero">${cover?`<div class="detail-backdrop" style="background-image:url('${esc(cover).replace(/'/g,'&#39;')}')"></div>`:''}<div>${displayCover(m)?`<img class="detail-cover" src="${esc(displayCover(m))}" alt="" referrerpolicy="no-referrer">`:`<div class="detail-cover cover-fallback">◇</div>`}</div><div><div class="eyebrow">${esc(source)}</div><h2 id="modal-title" class="detail-title">${esc(displayTitle(m))}</h2>${mangaLink}<div class="chips">${cats.map(c=>`<button class="chip chip-button" data-search-jump="category:&quot;${esc(c)}&quot;">${esc(c)}</button>`).join('')}${genres.slice(0,12).map(g=>`<button class="chip chip-button" data-search-jump="genre:&quot;${esc(g)}&quot;">${esc(g)}</button>`).join('')}</div><div class="metadata"><div><b>Author</b>${displayAuthor(m)?`<button class="inline-link" data-search-jump="author:&quot;${esc(displayAuthor(m))}&quot;">${esc(displayAuthor(m))}</button>`:'—'}</div><div><b>Artist</b>${displayArtist(m)?`<button class="inline-link" data-search-jump="artist:&quot;${esc(displayArtist(m))}&quot;">${esc(displayArtist(m))}</button>`:'—'}</div><div><b>Status</b>${esc(displayStatus(m))}</div><div><b>Progress</b>${readCount(m)} / ${m.chapters.length} read</div><div><b>Bookmarks</b>${bookmarkCount(m)}</div><div><b>Tracking</b>${m.tracking.length}</div></div><div class="detail-progress-wrap"><div class="coverage-bar"><i style="width:${pct}%"></i></div><b>${pct}% read</b></div></div></div>
+    $('#modal-content').innerHTML=`<div class="detail-hero premium-detail-hero">${cover?`<div class="detail-backdrop" style="background-image:url('${esc(cover).replace(/'/g,'&#39;')}')"></div>`:''}<div>${displayCover(m)?`<img class="detail-cover" src="${esc(displayCover(m))}" alt="" referrerpolicy="no-referrer">`:`<div class="detail-cover cover-fallback">◇</div>`}</div><div><div class="eyebrow">${esc(source)}</div><h2 id="modal-title" class="detail-title">${esc(displayTitle(m))}</h2>${mangaLink}<div class="chips">${cats.map(c=>`<button class="chip chip-button" data-search-jump="category:&quot;${esc(c)}&quot;">${esc(c)}</button>`).join('')}${genres.slice(0,12).map(g=>`<button class="chip chip-button" data-search-jump="genre:&quot;${esc(g)}&quot;">${esc(g)}</button>`).join('')}</div><div class="metadata"><div><b>Author</b>${displayAuthor(m)?`<button class="inline-link" data-search-jump="author:&quot;${esc(displayAuthor(m))}&quot;">${esc(displayAuthor(m))}</button>`:'—'}</div><div><b>Artist</b>${displayArtist(m)?`<button class="inline-link" data-search-jump="artist:&quot;${esc(displayArtist(m))}&quot;">${esc(displayArtist(m))}</button>`:'—'}</div><div><b>Status</b>${esc(displayStatus(m))}</div><div><b>Progress</b>${readCount(m)} / ${m.chapters.length} read</div><div><b>Bookmarks</b>${bookmarkCount(m)}</div><div><b>Tracking</b>${m.tracking.length}</div></div><div class="detail-progress-wrap"><div class="coverage-bar"><i style="width:${pct}%"></i></div><b>${pct}% read</b></div><div class="detail-actions"><button class="danger-btn" data-delete-manga="${index}">Delete manga from backup</button></div></div></div>
       <div class="modal-tabs"><button class="modal-tab active" data-modal-tab="overview">Overview</button><button class="modal-tab" data-modal-tab="chapters">Chapters</button><button class="modal-tab" data-modal-tab="tracking">Tracking${m.tracking.length?` (${m.tracking.length})`:''}</button><button class="modal-tab" data-modal-tab="raw">Raw</button></div>
       <div class="modal-tab-panel" data-modal-panel="overview">${displayDescription(m)?`<p class="description">${esc(displayDescription(m))}</p>`:'<p class="muted">No description stored.</p>'}${m.notes?`<p class="description"><strong>Notes:</strong> ${esc(m.notes)}</p>`:''}<div class="detail-list"><div class="detail-item"><span>Source ID</span><strong>${esc(key64(m.source))}</strong></div><div class="detail-item"><span>Date added</span><strong>${asNum(m.dateAdded)?new Date(asNum(m.dateAdded)).toLocaleString():'—'}</strong></div><div class="detail-item"><span>Last read</span><strong>${lastRead(m)?new Date(lastRead(m)).toLocaleString():'—'}</strong></div><div class="detail-item"><span>Merged references</span><strong>${m.mergedMangaReferences.length}</strong></div></div></div>
       <div class="modal-tab-panel hidden" data-modal-panel="chapters"><div class="chapter-head"><h3>Chapters</h3><span class="muted">${m.chapters.length.toLocaleString()} total</span></div><div class="chapter-toolbar"><label class="searchbox"><span>⌕</span><input id="chapter-search" type="search" placeholder="Search chapter or scanlator"></label><select id="chapter-filter"><option value="all">All</option><option value="unread">Unread</option><option value="read">Read</option><option value="bookmarked">Bookmarked</option></select><select id="chapter-sort"><option value="number-desc">Newest number</option><option value="number-asc">Oldest number</option><option value="upload-desc">Newest upload</option><option value="upload-asc">Oldest upload</option><option value="source-desc">Source order ↓</option><option value="source-asc">Source order ↑</option></select></div><div id="chapter-result-meta" class="result-meta"></div><div id="chapter-list" class="chapter-list"></div></div>
@@ -1292,21 +1298,129 @@
   function toggleDashboardWidget(key,on){const set=new Set(state.settings.pinnedWidgets||Object.keys(DASHBOARD_WIDGETS));if(on)set.add(key);else set.delete(key);saveSettings({pinnedWidgets:[...set]});applyDashboardWidgetSettings();}
   function reorderDashboardWidgets(from,to){let order=[...(state.settings.widgetOrder||Object.keys(DASHBOARD_WIDGETS))];const a=order.indexOf(from),b=order.indexOf(to);if(a<0||b<0||a===b)return;order.splice(a,1);order.splice(b,0,from);saveSettings({widgetOrder:order});applyDashboardWidgetSettings();}
 
-  function buildNotifications(){
-    if(!state.data){state.notifications=[];renderNotifications();return;}
-    const h=computeHealth(),q=computeQualityScore(),notes=[];
-    notes.push({type:h.score>=90?'good':'warn',title:`Backup health ${h.score}%`,text:h.score>=90?'No major consistency issue detected.':'Open Health Check for recommended review.'});
-    if(h.issues.unknownSource.length)notes.push({type:'bad',title:'Unknown sources',text:`${h.issues.unknownSource.length.toLocaleString()} manga may need migration.`,tab:'migration'});
-    if(computeDuplicates().strong.length)notes.push({type:'warn',title:'Duplicate groups',text:`${computeDuplicates().strong.length.toLocaleString()} strong duplicate groups detected.`,tab:'duplicates'});
-    if(q.score<80)notes.push({type:'warn',title:'Library quality',text:`Quality score is ${q.score}%. Review missing metadata.`,tab:'quality'});
-    if(state.compareData)notes.push({type:'good',title:'Comparison ready',text:`Compared against ${state.compareFileName}.`,tab:'compare'});
-    state.notifications=notes;renderNotifications();
-  }
-  function renderNotifications(){const list=$('#notification-list'),count=$('#notification-count');if(!list||!count)return;const notes=state.notifications||[];count.textContent=String(notes.length);count.classList.toggle('hidden',!notes.length);list.innerHTML=notes.length?notes.map((n,i)=>`<button class="notification-item ${n.type||''}" data-notification-index="${i}"><strong>${esc(n.title)}</strong><small>${esc(n.text)}</small></button>`).join(''):'<div class="empty-state">No notifications.</div>';}
-  function toggleNotifications(open){$('#notification-drawer').classList.toggle('hidden',!open);if(open)renderNotifications();}
+  function notificationKey(n){return n.id||`${n.title}|${n.text}|${n.tab||''}`;}
+  function notificationSignature(notes=state.notifications){return notes.map(notificationKey).join('||');}
 
-  function openQuickPreview(index){const m=state.data?.backupManga?.[Number(index)];if(!m)return;state.previewMangaIndex=Number(index);const cover=displayCover(m),pct=m.chapters.length?Math.round(readCount(m)/m.chapters.length*100):0;$('#quick-preview-content').innerHTML=`<div class="quick-preview-hero" style="--quick-cover:${cover?`url('${esc(cover).replace(/'/g,'&#39;')}')`:'linear-gradient(135deg,var(--surface2),var(--surface3))'}"><div><span>${esc(sourceName(m))}</span><h3>${esc(displayTitle(m))}</h3><small>${esc(displayStatus(m))}</small></div></div><div class="quick-preview-stats"><div><strong>${m.chapters.length}</strong><small>Chapters</small></div><div><strong>${unreadCount(m)}</strong><small>Unread</small></div><div><strong>${m.tracking.length}</strong><small>Trackers</small></div></div><div class="coverage-bar"><i style="width:${pct}%"></i></div><p class="muted">${esc((displayDescription(m)||'No description stored.').slice(0,400))}</p><button class="primary-btn" data-open-preview-details="${index}">Open full details</button>`;$('#quick-preview-drawer').classList.remove('hidden');}
-  function closeQuickPreview(){state.previewMangaIndex=null;$('#quick-preview-drawer').classList.add('hidden');}
+  function buildNotifications(){
+    if(!state.data){state.notifications=[];state.notificationUnread=0;state.notificationSignature='';renderNotifications();return;}
+    const h=computeHealth(),q=computeQualityScore(),notes=[];
+    notes.push({id:'health',type:h.score>=90?'good':'warn',title:`Backup health ${h.score}%`,text:h.score>=90?'No major consistency issue detected.':'Open Health Check for recommended review.',tab:'health'});
+    if(h.issues.unknownSource.length)notes.push({id:'unknown-sources',type:'bad',title:'Unknown sources',text:`${h.issues.unknownSource.length.toLocaleString()} manga may need migration.`,tab:'migration'});
+    if(computeDuplicates().strong.length)notes.push({id:'duplicates',type:'warn',title:'Duplicate groups',text:`${computeDuplicates().strong.length.toLocaleString()} strong duplicate groups detected.`,tab:'duplicates'});
+    if(q.score<80)notes.push({id:'quality',type:'warn',title:'Library quality',text:`Quality score is ${q.score}%. Review missing metadata.`,tab:'quality'});
+    if(state.compareData)notes.push({id:'comparison',type:'good',title:'Comparison ready',text:`Compared against ${state.compareFileName}.`,tab:'compare'});
+
+    state.notifications=notes.filter(n=>!state.dismissedNotifications.has(notificationKey(n)));
+    const signature=notificationSignature();
+    if(signature!==state.notificationSignature){
+      state.notificationSignature=signature;
+      state.notificationUnread=signature && signature!==state.notificationSeenSignature ? state.notifications.length : 0;
+    }
+    renderNotifications();
+  }
+
+  function renderNotifications(){
+    const list=$('#notification-list'),count=$('#notification-count');if(!list||!count)return;
+    const notes=state.notifications||[];
+    count.textContent=String(state.notificationUnread||0);
+    count.classList.toggle('hidden',!(state.notificationUnread>0));
+    list.innerHTML=notes.length?notes.map((n,i)=>`<div class="notification-item ${n.type||''}"><button class="notification-main" data-notification-index="${i}"><strong>${esc(n.title)}</strong><small>${esc(n.text)}</small></button><button class="notification-dismiss" type="button" data-dismiss-notification="${i}" aria-label="Dismiss ${esc(n.title)}">×</button></div>`).join(''):'<div class="empty-state compact-empty">No notifications.</div>';
+  }
+
+  function syncDrawerBackdrop(){
+    const anyOpen=!$('#notification-drawer').classList.contains('hidden')||!$('#quick-preview-drawer').classList.contains('hidden');
+    $('#drawer-backdrop')?.classList.toggle('hidden',!anyOpen);
+  }
+
+  function toggleNotifications(open){
+    if(open){
+      closeQuickPreview();
+      state.notificationSeenSignature=state.notificationSignature;
+      state.notificationUnread=0;
+    }
+    $('#notification-drawer').classList.toggle('hidden',!open);
+    renderNotifications();
+    syncDrawerBackdrop();
+  }
+
+  function dismissNotification(index){
+    const n=state.notifications?.[Number(index)];if(!n)return;
+    state.dismissedNotifications.add(notificationKey(n));
+    state.notifications.splice(Number(index),1);
+    state.notificationSignature=notificationSignature();
+    state.notificationSeenSignature=state.notificationSignature;
+    state.notificationUnread=0;
+    renderNotifications();
+  }
+
+  function clearAllNotifications(){
+    (state.notifications||[]).forEach(n=>state.dismissedNotifications.add(notificationKey(n)));
+    state.notifications=[];
+    state.notificationSignature='';
+    state.notificationSeenSignature='';
+    state.notificationUnread=0;
+    renderNotifications();
+    toast('Notifications cleared');
+  }
+
+  function openQuickPreview(index){
+    const m=state.data?.backupManga?.[Number(index)];if(!m)return;
+    $('#notification-drawer').classList.add('hidden');
+    state.previewMangaIndex=Number(index);
+    const cover=displayCover(m),pct=m.chapters.length?Math.round(readCount(m)/m.chapters.length*100):0;
+    $('#quick-preview-content').innerHTML=`<div class="quick-preview-hero" style="--quick-cover:${cover?`url('${esc(cover).replace(/'/g,'&#39;')}')`:'linear-gradient(135deg,var(--surface2),var(--surface3))'}"><div><span>${esc(sourceName(m))}</span><h3>${esc(displayTitle(m))}</h3><small>${esc(displayStatus(m))}</small></div></div><div class="quick-preview-stats"><div><strong>${m.chapters.length}</strong><small>Chapters</small></div><div><strong>${unreadCount(m)}</strong><small>Unread</small></div><div><strong>${m.tracking.length}</strong><small>Trackers</small></div></div><div class="coverage-bar"><i style="width:${pct}%"></i></div><p class="muted">${esc((displayDescription(m)||'No description stored.').slice(0,400))}</p><div class="quick-preview-actions"><button class="primary-btn" data-open-preview-details="${index}">Open full details</button><button class="danger-btn" data-delete-manga="${index}">Delete manga</button></div>`;
+    $('#quick-preview-drawer').classList.remove('hidden');
+    syncDrawerBackdrop();
+  }
+  function closeQuickPreview(){state.previewMangaIndex=null;$('#quick-preview-drawer').classList.add('hidden');syncDrawerBackdrop();}
+
+  function refreshAfterBackupMutation(message='Backup updated'){
+    state.cache={health:null,duplicates:null,activity:null,searchIndex:null};
+    state.repairPlan=null;
+    buildIndexes();
+    populateFilters();
+    applyFilters(true);
+    renderDashboard();
+    renderBackupMetadata();
+    if(state.compareData){
+      state.diff=compareBackups(state.data,state.compareData);
+      if(!$('#analysis-compare').classList.contains('hidden'))renderComparison();
+    }
+    if(!$('#explore-panel').classList.contains('hidden'))switchExploreTab(state.exploreTab);
+    if(!$('#analyze-panel').classList.contains('hidden'))switchAnalysisTab(state.analysisTab);
+    buildNotifications();
+    toast(message);
+  }
+
+  function deleteMangaAt(index){
+    const i=Number(index),m=state.data?.backupManga?.[i];if(!m)return;
+    if(!confirm(`Delete "${displayTitle(m)}" from the backup currently loaded in memory?\n\nThe original backup file is not changed unless you export a new backup.`))return;
+    state.data.backupManga.splice(i,1);
+    closeQuickPreview();
+    closeModal();
+    refreshAfterBackupMutation('Manga removed from loaded backup');
+  }
+
+  function deleteFilteredManga(){
+    if(!state.data)return;
+    const items=[...state.filtered];
+    if(!items.length){toast('No filtered manga to delete');return;}
+    if(!confirm(`Delete ${items.length.toLocaleString()} currently filtered manga from the loaded backup?\n\nThe original file stays unchanged until you export a new backup.`))return;
+    const remove=new Set(items);
+    state.data.backupManga=state.data.backupManga.filter(m=>!remove.has(m));
+    refreshAfterBackupMutation(`${items.length.toLocaleString()} filtered manga removed`);
+  }
+
+  function deleteAllManga(){
+    if(!state.data)return;
+    const count=state.data.backupManga.length;
+    if(!count){toast('No manga to delete');return;}
+    if(!confirm(`Delete ALL ${count.toLocaleString()} manga from the backup currently loaded in memory?\n\nThis cannot be undone inside this session. Your original backup file remains unchanged unless you export a new backup.`))return;
+    state.data.backupManga=[];
+    closeQuickPreview();
+    closeModal();
+    refreshAfterBackupMutation('All manga removed from loaded backup');
+  }
 
   function commandDefinitions(){return [
     ['Dashboard','⌂','Open Command Dashboard',()=>switchView('dashboard'),'D'],['Library','▦','Browse the library',()=>switchView('library'),'G'],['Explore','⌘','Open Backup Explorer',()=>switchView('explore'),'E'],['Analyze','◎','Open Backup Analyzer',()=>switchView('analyze'),'A'],['Tools','⚙','Open Backup Tools',()=>switchView('tools'),'T'],['Health Check','♥','Analyze backup health',()=>{switchView('analyze');switchAnalysisTab('health');},''],['Migration Assistant','↗','Review source migration candidates',()=>{switchView('analyze');switchAnalysisTab('migration');},''],['Quality Score','◇','Review library quality',()=>{switchView('analyze');switchAnalysisTab('quality');},''],['Compare Backups','⇄','Compare another backup',()=>{switchView('analyze');switchAnalysisTab('compare');},''],['Export Premium Report','↧','Download standalone HTML report',exportPremiumReport,''],['Theme / Appearance','◐','Theme, accent and surface',openThemePicker,''],['Focus Mode','□','Library-only distraction free mode',toggleFocusMode,'F'],['Presentation Mode','▶','Full-screen style dashboard',togglePresentationMode,'P'],['Notifications','♢','Open status center',()=>toggleNotifications(true),''],['What’s New','✦','Show v1.5.0 changes',openWhatsNew,''],['About','i','Project and privacy information',openAbout,''],
@@ -1381,6 +1495,10 @@
     $('#open-theme-picker').addEventListener('click',openThemePicker); $('#theme-toggle').addEventListener('click',openThemePicker); $('#performance-mode-select').addEventListener('change',()=>{saveSettings({performanceMode:$('#performance-mode-select').value});applyPerformanceMode();}); $('#lock-viewer').addEventListener('click',lockViewer); $('#unlock-viewer').addEventListener('click',unlockViewer); $('#auto-lock-select').addEventListener('change',()=>{saveSettings({autoLock:Number($('#auto-lock-select').value)||0});armAutoLock();});
     $('#export-settings').addEventListener('click',exportViewerSettings); $('#import-settings').addEventListener('click',()=>$('#settings-input').click()); $('#settings-input').addEventListener('change',e=>importViewerSettings(e.target.files?.[0])); $('#install-app').addEventListener('click',installApp); $('#clear-settings').addEventListener('click',clearViewerSettings); $('#clear-session').addEventListener('click',closeBackup); $('#stale-days').addEventListener('change',renderStale); $('#apply-safe-repairs').addEventListener('click',applySafeRepairs); $('#export-repair-plan').addEventListener('click',exportRepairPlan);
     $('#install-home').addEventListener('click',installApp); $('#command-palette-button').addEventListener('click',openCommandPalette); $('#notification-button').addEventListener('click',()=>toggleNotifications($('#notification-drawer').classList.contains('hidden'))); $('#version-badge').addEventListener('click',openWhatsNew);
+    $('#clear-all-notifications').addEventListener('click',clearAllNotifications);
+    $('#drawer-backdrop').addEventListener('click',()=>{toggleNotifications(false);closeQuickPreview();});
+    $('#delete-filtered-manga').addEventListener('click',deleteFilteredManga);
+    $('#delete-all-manga').addEventListener('click',deleteAllManga);
     $('#customize-dashboard').addEventListener('click',openDashboardCustomizer); $('#focus-mode-button').addEventListener('click',toggleFocusMode); $('#presentation-mode-button').addEventListener('click',togglePresentationMode); $('#focus-exit').addEventListener('click',toggleFocusMode); $('#presentation-exit').addEventListener('click',togglePresentationMode);
     $('#accent-color-input').addEventListener('input',e=>setAccent(e.target.value)); $('#theme-accent-input').addEventListener('input',e=>setAccent(e.target.value)); $('#reset-accent').addEventListener('click',()=>setAccent('')); $('#surface-style-select').addEventListener('change',e=>setSurface(e.target.value)); $('#theme-surface-select').addEventListener('change',e=>setSurface(e.target.value)); $('#ambient-select').addEventListener('change',e=>setAmbient(e.target.value)); $('#theme-ambient-select').addEventListener('change',e=>setAmbient(e.target.value));
     $('#large-text-toggle').addEventListener('change',e=>{saveSettings({largeText:e.target.checked});applyPremiumSettings();}); $('#high-contrast-toggle').addEventListener('change',e=>{saveSettings({highContrast:e.target.checked});applyPremiumSettings();}); $('#reduced-motion-toggle').addEventListener('change',e=>{saveSettings({reducedMotion:e.target.checked});applyPremiumSettings();}); $('#blur-hidden-toggle').addEventListener('change',e=>{saveSettings({blurOnHidden:e.target.checked});handleVisibilitySecurity();});
@@ -1392,7 +1510,9 @@
     document.addEventListener('click',e=>{
       armAutoLock(); if(document.body.classList.contains('mobile-menu-open')&&!e.target.closest('#primary-nav')&&!e.target.closest('#mobile-menu-toggle'))setMobileMenu(false);
       const qp=e.target.closest('[data-quick-preview]');if(qp){e.preventDefault();e.stopPropagation();openQuickPreview(qp.dataset.quickPreview);return;} const openPrev=e.target.closest('[data-open-preview-details]');if(openPrev){closeQuickPreview();showManga(openPrev.dataset.openPreviewDetails);} if(e.target.closest('[data-close-preview]'))closeQuickPreview(); if(e.target.closest('[data-close-notifications]'))toggleNotifications(false); if(e.target.closest('[data-close-command]'))closeCommandPalette();
-      const cmd=e.target.closest('[data-command-index]');if(cmd)runCommandIndex(cmd.dataset.commandIndex); const top=e.target.closest('[data-top-list]');if(top)openTopList(top.dataset.topList); const wt=e.target.closest('[data-widget-toggle]');if(wt)toggleDashboardWidget(wt.dataset.widgetToggle,wt.checked); const note=e.target.closest('[data-notification-index]');if(note){const n=state.notifications[Number(note.dataset.notificationIndex)];toggleNotifications(false);if(n?.tab){switchView('analyze');switchAnalysisTab(n.tab);}}
+      const dismiss=e.target.closest('[data-dismiss-notification]');if(dismiss){e.preventDefault();e.stopPropagation();dismissNotification(dismiss.dataset.dismissNotification);return;}
+      const deleteManga=e.target.closest('[data-delete-manga]');if(deleteManga){e.preventDefault();e.stopPropagation();deleteMangaAt(deleteManga.dataset.deleteManga);return;}
+      const cmd=e.target.closest('[data-command-index]');if(cmd)runCommandIndex(cmd.dataset.commandIndex); const top=e.target.closest('[data-top-list]');if(top)openTopList(top.dataset.topList); const wt=e.target.closest('[data-widget-toggle]');if(wt)toggleDashboardWidget(wt.dataset.widgetToggle,wt.checked); const note=e.target.closest('[data-notification-index]');if(note){const n=state.notifications[Number(note.dataset.notificationIndex)];state.notificationSeenSignature=state.notificationSignature;state.notificationUnread=0;renderNotifications();toggleNotifications(false);if(n?.tab){switchView('analyze');switchAnalysisTab(n.tab);}}
       const hit=e.target.closest('[data-manga-index]');if(hit)showManga(hit.dataset.mangaIndex); const mt=e.target.closest('[data-modal-tab]');if(mt)switchModalTab(mt.dataset.modalTab);
       const categoryJump=e.target.closest('[data-category-jump]');if(categoryJump)jumpToLibrary({category:categoryJump.dataset.categoryJump}); const sourceJump=e.target.closest('[data-source-jump]');if(sourceJump)jumpToLibrary({source:sourceJump.dataset.sourceJump});
       const searchJump=e.target.closest('[data-search-jump]');if(searchJump){closeModal();jumpSearch(searchJump.dataset.searchJump.replace(/&quot;/g,'"'));} const smart=e.target.closest('[data-smart-jump]');if(smart){state.quickFilter=smart.dataset.smartJump;updateQuickChipUi();switchView('library');applyFilters(true);} const preset=e.target.closest('[data-preset-index]');if(preset)applyPreset(preset.dataset.presetIndex);
