@@ -92,7 +92,7 @@
     mihon:{name:'Mihon',schema:'schema-mihon.proto',exportBase:'mihon-backup'},
   };
   const DAY = 86400000;
-  const VERSION = '1.5.4';
+  const VERSION = '1.5.5';
   const DASHBOARD_WIDGETS = {health:'Backup health',snapshot:'Library snapshot',recent:'Recently read',vault:'Backup Vault',charts:'Activity trends',quality:'Library Quality',tracking:'Tracker Coverage',sources:'Source Reliability',persona:'Reading Persona',milestones:'Milestones',toplists:'Top Lists'};
   const CHANGELOG_SUMMARY = [
     'Notification drawer no longer covers the desktop header',
@@ -1150,7 +1150,7 @@
   async function installApp(){if(state.installPrompt){state.installPrompt.prompt();await state.installPrompt.userChoice;state.installPrompt=null;return;}toast('Use browser “Add to Home screen” if install is not offered.');}
   function registerPwa(){
     if('serviceWorker'in navigator){
-      navigator.serviceWorker.register('./sw.js?v=154',{updateViaCache:'none'})
+      navigator.serviceWorker.register('./sw.js?v=155',{updateViaCache:'none'})
         .then(reg=>reg.update())
         .catch(e=>log(`Service worker: ${e.message}`));
     }
@@ -1438,7 +1438,7 @@
           <button class="notification-main" type="button" data-notification-index="${i}" aria-label="Open ${esc(n.title)}">
             <strong>${esc(n.title)}</strong><small>${esc(n.text)}</small>
           </button>
-          <button class="notification-dismiss" type="button" data-dismiss-notification="${i}" title="Delete notification" aria-label="Delete ${esc(n.title)} notification">×</button>
+          <button class="notification-dismiss" type="button" data-dismiss-notification="${i}" title="Delete notification" aria-label="Delete ${esc(n.title)} notification"><span class="notification-x-glyph" aria-hidden="true">×</span></button>
         </div>`).join('')
       :'<div class="empty-state compact-empty"><strong>All caught up</strong><br><span>No notifications.</span></div>';
   }
