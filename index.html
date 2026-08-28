@@ -36,7 +36,10 @@
 
       <div class="top-actions">
         <button id="mobile-menu-toggle" class="icon-btn mobile-menu-toggle" type="button" title="Open menu" aria-label="Open menu" aria-controls="primary-nav" aria-expanded="false">☰</button>
-        <button id="theme-toggle" class="icon-btn" title="Toggle theme" aria-label="Toggle theme">☼</button>
+        <button id="command-palette-button" class="icon-btn desktop-command-btn" title="Command palette · Ctrl+K" aria-label="Open command palette">⌘</button>
+        <button id="notification-button" class="icon-btn notification-btn" title="Notifications" aria-label="Open notifications">♢<span id="notification-count" class="notification-count hidden">0</span></button>
+        <button id="theme-toggle" class="icon-btn" title="Appearance" aria-label="Appearance">◐</button>
+        <button id="version-badge" class="version-badge" type="button">v1.5 <span>NEW</span></button>
         <button id="new-backup" class="outline-btn">New backup</button>
       </div>
     </header>
@@ -44,7 +47,7 @@
     <main>
       <section id="loader-view" class="loader-grid">
         <article class="hero-card">
-          <div class="eyebrow">KIRIN BACKUP VIEWER · v1.4.0</div>
+          <div class="eyebrow">KIRIN BACKUP VIEWER · v1.5.0 PREMIUM SUITE</div>
           <h1>Inspect your manga backup directly in the browser.</h1>
           <p class="lead">Choose the backup app first, then open <code>.tachibk</code>, raw protobuf, <code>.proto.gz</code>, or decoded JSON. Everything is processed locally in this tab.</p>
 
@@ -101,8 +104,12 @@
           <article class="home-info-card">
             <span class="home-card-icon">↗</span>
             <h3>Project</h3>
-            <p><strong>v1.4.0 Dual Backup</strong><br><a href="https://github.com/Lanzkila/Komikku-Viewers" target="_blank" rel="noopener">GitHub repository</a> · <a href="https://github.com/Lanzkila/Komikku-Viewers/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a></p>
+            <p><strong>v1.5.0 Premium Suite</strong><br><a href="https://github.com/Lanzkila/Komikku-Viewers" target="_blank" rel="noopener">GitHub repository</a> · <a href="https://github.com/Lanzkila/Komikku-Viewers/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a></p>
           </article>
+        </section>
+        <section class="home-status-strip home-wide">
+          <div><span id="offline-ready-badge" class="status-pill">Checking offline cache…</span><span class="status-pill">Komikku + Mihon</span><span class="status-pill">Client-side</span></div>
+          <button id="install-home" class="outline-btn compact-btn">Install app</button>
         </section>
       </section>
 
@@ -119,24 +126,30 @@
         </div>
 
         <section id="dashboard-panel" class="panel-view">
-          <div class="section-head">
-            <div><div class="eyebrow">OVERVIEW</div><h2>Dashboard</h2></div>
-            <button id="dashboard-health-jump" class="outline-btn compact-btn">Run health check</button>
+          <div class="section-head premium-section-head">
+            <div><div class="eyebrow">PREMIUM OVERVIEW</div><h2>Command Dashboard</h2></div>
+            <div class="dashboard-actions">
+              <button id="customize-dashboard" class="outline-btn compact-btn">Customize</button>
+              <button id="focus-mode-button" class="outline-btn compact-btn">Focus</button>
+              <button id="presentation-mode-button" class="outline-btn compact-btn">Present</button>
+              <button id="dashboard-health-jump" class="outline-btn compact-btn">Health check</button>
+            </div>
           </div>
-          <div id="dashboard-cards" class="stat-grid dashboard-stats"></div>
-          <div class="dashboard-grid">
-            <article class="info-panel">
-              <div class="panel-title-row"><h3>Backup health</h3><button class="text-btn" data-analysis-tab="health">Details →</button></div>
-              <div id="dashboard-health"></div>
-            </article>
-            <article class="info-panel">
-              <div class="panel-title-row"><h3>Library snapshot</h3><button class="text-btn" data-view-jump="library">Open library →</button></div>
-              <div id="dashboard-snapshot" class="detail-list"></div>
-            </article>
-            <article class="info-panel wide-panel">
-              <div class="panel-title-row"><h3>Recently read</h3><button class="text-btn" data-explore-tab="activity">View activity →</button></div>
-              <div id="dashboard-recent" class="mini-list"></div>
-            </article>
+          <div id="smart-status-banner" class="smart-status-banner"></div>
+          <div id="dashboard-cards" class="stat-grid dashboard-stats premium-stat-grid"></div>
+          <section id="command-center" class="command-center"></section>
+          <div id="premium-dashboard-grid" class="premium-dashboard-grid">
+            <article class="info-panel premium-widget" draggable="true" data-dashboard-widget="health"><div class="panel-title-row"><h3>Backup health</h3><button class="text-btn" data-analysis-tab="health">Details →</button></div><div id="dashboard-health"></div></article>
+            <article class="info-panel premium-widget" draggable="true" data-dashboard-widget="snapshot"><div class="panel-title-row"><h3>Library snapshot</h3><button class="text-btn" data-view-jump="library">Open library →</button></div><div id="dashboard-snapshot" class="detail-list"></div></article>
+            <article class="info-panel premium-widget widget-wide" draggable="true" data-dashboard-widget="recent"><div class="panel-title-row"><h3>Recently read</h3><button class="text-btn" data-explore-tab="activity">Activity →</button></div><div id="dashboard-recent" class="mini-list"></div></article>
+            <article class="info-panel premium-widget" draggable="true" data-dashboard-widget="vault"><div class="panel-title-row"><h3>Backup Vault</h3><span class="status-dot good"></span></div><div id="backup-vault" class="detail-list"></div></article>
+            <article class="info-panel premium-widget" draggable="true" data-dashboard-widget="charts"><div class="panel-title-row"><h3>Activity trends</h3><span class="muted">Mini charts</span></div><div id="dashboard-mini-charts" class="mini-chart-stack"></div></article>
+            <article class="info-panel premium-widget" draggable="true" data-dashboard-widget="quality"><div class="panel-title-row"><h3>Library Quality</h3><button class="text-btn" data-analysis-tab="quality">Details →</button></div><div id="dashboard-quality"></div></article>
+            <article class="info-panel premium-widget" draggable="true" data-dashboard-widget="tracking"><div class="panel-title-row"><h3>Tracker Coverage</h3><button class="text-btn" data-explore-tab="trackers">Explore →</button></div><div id="dashboard-tracker-coverage"></div></article>
+            <article class="info-panel premium-widget" draggable="true" data-dashboard-widget="sources"><div class="panel-title-row"><h3>Source Reliability</h3><button class="text-btn" data-analysis-tab="migration">Migration →</button></div><div id="dashboard-source-reliability"></div></article>
+            <article class="info-panel premium-widget" draggable="true" data-dashboard-widget="persona"><div class="panel-title-row"><h3>Reading Persona</h3><span class="premium-chip">LOCAL</span></div><div id="dashboard-persona"></div></article>
+            <article class="info-panel premium-widget" draggable="true" data-dashboard-widget="milestones"><div class="panel-title-row"><h3>Milestones</h3><span class="muted">From backup data</span></div><div id="dashboard-milestones" class="milestone-grid"></div></article>
+            <article class="info-panel premium-widget widget-wide" draggable="true" data-dashboard-widget="toplists"><div class="panel-title-row"><h3>Top Lists</h3><span class="muted">Six rankings</span></div><div id="dashboard-top-lists" class="top-list-cards"></div></article>
           </div>
         </section>
 
@@ -146,8 +159,9 @@
             <div class="view-controls">
               <label class="mini-select-label">View
                 <select id="view-mode-select">
-                  <option value="grid">Grid</option>
+                  <option value="grid">Comfortable</option>
                   <option value="compact">Compact</option>
+                  <option value="showcase">Showcase</option>
                   <option value="list">List</option>
                 </select>
               </label>
@@ -234,6 +248,7 @@
             <button class="subnav-btn" data-explore="smart">Smart Collections</button>
             <button class="subnav-btn" data-explore="growth">Library Growth</button>
             <button class="subnav-btn" data-explore="heatmap">Heatmap</button>
+            <button class="subnav-btn" data-explore="year-review">Year in Review</button>
           </div>
           <div id="explore-categories" class="subpanel"><div id="category-explorer" class="explorer-grid"></div></div>
           <div id="explore-sources" class="subpanel hidden"><div id="source-explorer" class="explorer-grid"></div></div>
@@ -244,6 +259,7 @@
           <div id="explore-smart" class="subpanel hidden"><div id="smart-collections" class="explorer-grid"></div><div class="section-spacer"><h3>Top manga</h3><div id="top-manga" class="list-stack"></div></div></div>
           <div id="explore-growth" class="subpanel hidden"><article class="info-panel"><h3>Manga added over time</h3><div id="library-growth" class="growth-chart"></div></article></div>
           <div id="explore-heatmap" class="subpanel hidden"><article class="info-panel"><div class="panel-title-row"><h3>Reading heatmap</h3><span id="heatmap-summary" class="muted"></span></div><div id="reading-heatmap" class="heatmap"></div><div class="heatmap-legend"><span>Less</span><i data-level="0"></i><i data-level="1"></i><i data-level="2"></i><i data-level="3"></i><i data-level="4"></i><span>More</span></div></article></div>
+          <div id="explore-year-review" class="subpanel hidden"><article class="info-panel"><div class="panel-title-row"><h3>Year in Review</h3><select id="year-review-select"></select></div><div id="year-review-content"></div></article></div>
         </section>
 
         <section id="analyze-panel" class="panel-view hidden">
@@ -257,6 +273,8 @@
             <button class="subnav-btn" data-analysis="source-health">Source Health</button>
             <button class="subnav-btn" data-analysis="orphans">Orphan Data</button>
             <button class="subnav-btn" data-analysis="repair">Repair Preview</button>
+            <button class="subnav-btn" data-analysis="migration">Migration Assistant</button>
+            <button class="subnav-btn" data-analysis="quality">Quality Score</button>
           </div>
 
           <div id="analysis-health" class="subpanel">
@@ -278,6 +296,7 @@
             </div>
             <div id="compare-status" class="diagnostic">No comparison backup loaded.</div>
             <div id="compare-summary" class="stat-grid compare-stats hidden"></div>
+            <div id="compare-timeline" class="compare-timeline hidden"></div>
             <div id="compare-details" class="compare-details hidden"></div>
             <button id="export-diff" class="outline-btn hidden">Export diff JSON</button>
           </div>
@@ -296,6 +315,8 @@
           <div id="analysis-source-health" class="subpanel hidden"><div id="source-health-summary" class="stat-grid"></div><div id="source-health-list" class="list-stack section-spacer"></div></div>
           <div id="analysis-orphans" class="subpanel hidden"><div id="orphan-summary" class="issue-grid"></div><div id="orphan-list" class="list-stack section-spacer"></div></div>
           <div id="analysis-repair" class="subpanel hidden"><div class="compare-hero"><div><h3>Safe repair preview</h3><p class="muted">Preview viewer-side cleanup. Nothing changes until you explicitly apply a safe repair.</p></div><button id="apply-safe-repairs" class="primary-btn">Apply safe repairs</button></div><div id="repair-preview" class="list-stack section-spacer"></div><div class="tool-inline-actions"><button id="export-repair-plan" class="outline-btn">Export repair plan JSON</button></div></div>
+          <div id="analysis-migration" class="subpanel hidden"><div class="panel-title-row"><div><h3>Migration Assistant</h3><p class="muted">Groups source problems and manga that may need source migration.</p></div><button id="export-migration-csv" class="outline-btn compact-btn">Export CSV</button></div><div id="migration-summary" class="stat-grid section-spacer"></div><div id="migration-list" class="list-stack section-spacer"></div></div>
+          <div id="analysis-quality" class="subpanel hidden"><div id="quality-hero"></div><div id="quality-dimensions" class="issue-grid section-spacer"></div><div id="health-recommendations" class="list-stack section-spacer"></div></div>
         </section>
 
         <section id="tools-panel" class="panel-view hidden">
@@ -310,7 +331,16 @@
             <article class="tool-card"><h3>Performance mode</h3><p>Reduce animation and heavy rendering for very large backups.</p><select id="performance-mode-select"><option value="auto">Auto</option><option value="on">On</option><option value="off">Off</option></select></article>
             <article class="tool-card"><h3>Privacy lock</h3><p>Hide the loaded backup instantly. Optional auto-lock can activate after inactivity.</p><div class="dual-buttons"><button id="lock-viewer" class="primary-btn">Lock now</button><select id="auto-lock-select"><option value="0">Auto-lock off</option><option value="5">5 min</option><option value="15">15 min</option><option value="30">30 min</option></select></div></article>
             <article class="tool-card"><h3>Viewer settings</h3><p>Export or import theme, filters, presets and layout settings. Backup data is not included.</p><div class="dual-buttons"><button id="export-settings" class="primary-btn">Export</button><button id="import-settings" class="outline-btn">Import</button><input id="settings-input" type="file" accept="application/json" hidden></div></article>
-            <article class="tool-card"><h3>Install / Offline</h3><p>Install as a PWA where supported. The app shell and runtime assets are cached after first online load.</p><button id="install-app" class="primary-btn">Install app</button></article>
+            <article class="tool-card"><h3>Install / Offline</h3><p>Install as a PWA where supported. The app shell and runtime assets are cached after first online load.</p><div class="dual-buttons"><button id="install-app" class="primary-btn">Install app</button><span id="offline-tool-status" class="status-pill">Checking…</span></div></article>
+            <article class="tool-card"><h3>Accent color</h3><p>Keep the selected theme but override its main accent.</p><div class="dual-buttons"><input id="accent-color-input" type="color" value="#8499ff"><button id="reset-accent" class="outline-btn">Reset</button></div></article>
+            <article class="tool-card"><h3>Surface style</h3><p>Switch between solid panels and a lightweight glass treatment.</p><select id="surface-style-select"><option value="solid">Solid</option><option value="glass">Glass</option></select></article>
+            <article class="tool-card"><h3>Ambient background</h3><p>Add a subtle theme-aware glow behind the interface.</p><select id="ambient-select"><option value="off">Off</option><option value="on">On</option></select></article>
+            <article class="tool-card"><h3>Accessibility</h3><p>Larger text, high contrast and reduced motion profiles.</p><div class="accessibility-controls"><label><input id="large-text-toggle" type="checkbox"> Larger text</label><label><input id="high-contrast-toggle" type="checkbox"> High contrast</label><label><input id="reduced-motion-toggle" type="checkbox"> Reduced motion</label></div></article>
+            <article class="tool-card"><h3>Session security</h3><p>Optionally blur backup content whenever this browser tab becomes hidden.</p><label class="toggle-row"><input id="blur-hidden-toggle" type="checkbox"> Blur when tab loses focus</label></article>
+            <article class="tool-card"><h3>Premium report</h3><p>Export a standalone HTML report with summary, quality, rankings and charts.</p><button id="export-premium-report" class="primary-btn">Export HTML</button></article>
+            <article class="tool-card"><h3>Share-safe report</h3><p>Export a sanitized HTML report without source URLs, raw IDs or backup internals.</p><button id="export-share-report" class="primary-btn">Export safe HTML</button></article>
+            <article class="tool-card"><h3>Product info</h3><p>Version, supported apps, offline status, privacy, license and what changed.</p><div class="dual-buttons"><button id="open-about" class="primary-btn">About</button><button id="open-whats-new" class="outline-btn">What's New</button></div></article>
+            <article class="tool-card"><h3>Shortcut overlay</h3><p>View keyboard shortcuts, including Ctrl+K command palette and focus mode.</p><button id="open-shortcuts" class="outline-btn">Show shortcuts</button></article>
             <article class="tool-card"><h3>Clear viewer settings</h3><p>Clear saved theme, sort, presets, layout and privacy preferences.</p><button id="clear-settings" class="outline-btn">Clear settings</button></article>
             <article class="tool-card"><h3>Session privacy</h3><p>Close the loaded backup and remove all in-memory comparison data.</p><button id="clear-session" class="outline-btn">Close backup</button></article>
           </div>
@@ -325,7 +355,7 @@
 
     <footer>
       <span>© <span id="footer-year"></span> Kirin Backup Viewer</span>
-      <span>Komikku + Mihon · Viewer + Analyzer · GPL-2.0</span>
+      <span>Komikku + Mihon · Premium Suite · GPL-2.0 · v1.5.0</span>
     </footer>
   </div>
 
@@ -360,6 +390,7 @@
         <button class="theme-card" data-theme-choice="forest"><span class="theme-preview theme-forest"></span><strong>Forest</strong><small>Emerald dark</small></button>
         <button class="theme-card" data-theme-choice="sepia"><span class="theme-preview theme-sepia"></span><strong>Sepia</strong><small>Warm paper</small></button>
       </div>
+      <div class="appearance-extras"><label>Accent <input id="theme-accent-input" type="color" value="#8499ff"></label><label>Surface <select id="theme-surface-select"><option value="solid">Solid</option><option value="glass">Glass</option></select></label><label>Ambient <select id="theme-ambient-select"><option value="off">Off</option><option value="on">On</option></select></label></div>
     </article>
   </div>
 
@@ -367,6 +398,17 @@
     <div class="privacy-lock-card"><div class="brand-mark">K</div><h2>Viewer locked</h2><p>The loaded backup is hidden, but remains only in this browser tab.</p><button id="unlock-viewer" class="primary-btn">Unlock viewer</button></div>
   </div>
 
+  <aside id="notification-drawer" class="side-drawer hidden" aria-label="Notifications"><div class="drawer-head"><div><div class="eyebrow">STATUS CENTER</div><h2>Notifications</h2></div><button class="icon-btn" data-close-notifications>×</button></div><div id="notification-list" class="notification-list"></div></aside>
+
+  <aside id="quick-preview-drawer" class="side-drawer quick-preview-drawer hidden" aria-label="Quick manga preview"><div class="drawer-head"><div><div class="eyebrow">QUICK PREVIEW</div><h2>Manga</h2></div><button class="icon-btn" data-close-preview>×</button></div><div id="quick-preview-content"></div></aside>
+
+  <div id="command-palette" class="command-palette hidden" role="dialog" aria-modal="true" aria-label="Command palette"><div class="command-backdrop" data-close-command></div><div class="command-box"><label class="command-search"><span>⌘</span><input id="command-input" type="search" placeholder="Search manga, sources, categories or commands…" autocomplete="off"></label><div id="command-results" class="command-results"></div><div class="command-foot"><span>↑↓ navigate</span><span>Enter open</span><span>Esc close</span></div></div></div>
+
+  <div id="backup-loading-overlay" class="backup-loading-overlay hidden" aria-live="polite"><div class="loading-card"><div class="loading-orb"></div><div><div class="eyebrow">OPENING BACKUP</div><h2 id="loading-stage-title">Reading file</h2><div class="loading-progress"><i id="loading-progress-bar"></i></div><div id="loading-stage-list" class="loading-stage-list"><span>Read</span><span>Decompress</span><span>Decode</span><span>Index</span><span>Analyze</span></div><div class="loading-skeletons"><i></i><i></i><i></i></div></div></div></div>
+
+  <button id="focus-exit" class="floating-exit hidden">Exit focus</button>
+  <button id="presentation-exit" class="floating-exit hidden">Exit presentation</button>
+  <div id="privacy-blur-shield" class="privacy-blur-shield hidden"><div><div class="brand-mark">K</div><strong>Backup hidden while tab is inactive</strong></div></div>
   <div id="toast" class="toast hidden"></div>
 </body>
 </html>
