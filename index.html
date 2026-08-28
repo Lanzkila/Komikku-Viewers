@@ -47,7 +47,7 @@
     <main>
       <section id="loader-view" class="loader-grid">
         <article class="hero-card">
-          <div class="eyebrow">KIRIN BACKUP VIEWER · v1.5.0 PREMIUM SUITE</div>
+          <div class="eyebrow">KIRIN BACKUP VIEWER · v1.5.2 PREMIUM SUITE</div>
           <h1>Inspect your manga backup directly in the browser.</h1>
           <p class="lead">Choose the backup app first, then open <code>.tachibk</code>, raw protobuf, <code>.proto.gz</code>, or decoded JSON. Everything is processed locally in this tab.</p>
 
@@ -104,7 +104,7 @@
           <article class="home-info-card">
             <span class="home-card-icon">↗</span>
             <h3>Project</h3>
-            <p><strong>v1.5.0 Premium Suite</strong><br><a href="https://github.com/Lanzkila/Komikku-Viewers" target="_blank" rel="noopener">GitHub repository</a> · <a href="https://github.com/Lanzkila/Komikku-Viewers/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a></p>
+            <p><strong>v1.5.2 Premium Suite</strong><br><a href="https://github.com/Lanzkila/Komikku-Viewers" target="_blank" rel="noopener">GitHub repository</a> · <a href="https://github.com/Lanzkila/Komikku-Viewers/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a></p>
           </article>
         </section>
         <section class="home-status-strip home-wide">
@@ -148,7 +148,7 @@
             <article class="info-panel premium-widget" draggable="true" data-dashboard-widget="tracking"><div class="panel-title-row"><h3>Tracker Coverage</h3><button class="text-btn" data-explore-tab="trackers">Explore →</button></div><div id="dashboard-tracker-coverage"></div></article>
             <article class="info-panel premium-widget" draggable="true" data-dashboard-widget="sources"><div class="panel-title-row"><h3>Source Reliability</h3><button class="text-btn" data-analysis-tab="migration">Migration →</button></div><div id="dashboard-source-reliability"></div></article>
             <article class="info-panel premium-widget" draggable="true" data-dashboard-widget="persona"><div class="panel-title-row"><h3>Reading Persona</h3><span class="premium-chip">LOCAL</span></div><div id="dashboard-persona"></div></article>
-            <article class="info-panel premium-widget" draggable="true" data-dashboard-widget="milestones"><div class="panel-title-row"><h3>Milestones</h3><span class="muted">From backup data</span></div><div id="dashboard-milestones" class="milestone-grid"></div></article>
+            <article class="info-panel premium-widget widget-wide" draggable="true" data-dashboard-widget="milestones"><div class="panel-title-row"><h3>Milestones</h3><span class="muted">From backup data</span></div><div id="dashboard-milestones" class="milestone-grid"></div></article>
             <article class="info-panel premium-widget widget-wide" draggable="true" data-dashboard-widget="toplists"><div class="panel-title-row"><h3>Top Lists</h3><span class="muted">Six rankings</span></div><div id="dashboard-top-lists" class="top-list-cards"></div></article>
           </div>
         </section>
@@ -342,6 +342,7 @@
             <article class="tool-card"><h3>Product info</h3><p>Version, supported apps, offline status, privacy, license and what changed.</p><div class="dual-buttons"><button id="open-about" class="primary-btn">About</button><button id="open-whats-new" class="outline-btn">What's New</button></div></article>
             <article class="tool-card"><h3>Shortcut overlay</h3><p>View keyboard shortcuts, including Ctrl+K command palette and focus mode.</p><button id="open-shortcuts" class="outline-btn">Show shortcuts</button></article>
             <article class="tool-card"><h3>Clear viewer settings</h3><p>Clear saved theme, sort, presets, layout and privacy preferences.</p><button id="clear-settings" class="outline-btn">Clear settings</button></article>
+            <article class="tool-card danger-zone-card"><h3>Danger Zone</h3><p>Remove manga from the backup currently loaded in memory. Your original file is unchanged until you export a new backup.</p><div class="dual-buttons"><button id="delete-filtered-manga" class="danger-btn">Delete filtered</button><button id="delete-all-manga" class="danger-btn danger-solid">Delete all manga</button></div></article>
             <article class="tool-card"><h3>Session privacy</h3><p>Close the loaded backup and remove all in-memory comparison data.</p><button id="clear-session" class="outline-btn">Close backup</button></article>
           </div>
           <div class="two-col tools-details">
@@ -355,7 +356,7 @@
 
     <footer>
       <span>© <span id="footer-year"></span> Kirin Backup Viewer</span>
-      <span>Komikku + Mihon · Premium Suite · GPL-2.0 · v1.5.0</span>
+      <span>Komikku + Mihon · Premium Suite · GPL-2.0 · v1.5.2</span>
     </footer>
   </div>
 
@@ -398,7 +399,15 @@
     <div class="privacy-lock-card"><div class="brand-mark">K</div><h2>Viewer locked</h2><p>The loaded backup is hidden, but remains only in this browser tab.</p><button id="unlock-viewer" class="primary-btn">Unlock viewer</button></div>
   </div>
 
-  <aside id="notification-drawer" class="side-drawer hidden" aria-label="Notifications"><div class="drawer-head"><div><div class="eyebrow">STATUS CENTER</div><h2>Notifications</h2></div><button class="icon-btn" data-close-notifications>×</button></div><div id="notification-list" class="notification-list"></div></aside>
+  <div id="drawer-backdrop" class="drawer-backdrop hidden" aria-hidden="true"></div>
+
+  <aside id="notification-drawer" class="side-drawer hidden" aria-label="Notifications">
+    <div class="drawer-head">
+      <div><div class="eyebrow">STATUS CENTER</div><h2>Notifications</h2></div>
+      <div class="drawer-head-actions"><button id="clear-all-notifications" class="outline-btn compact-btn" type="button">Clear all</button><button class="icon-btn" data-close-notifications aria-label="Close notifications">×</button></div>
+    </div>
+    <div id="notification-list" class="notification-list"></div>
+  </aside>
 
   <aside id="quick-preview-drawer" class="side-drawer quick-preview-drawer hidden" aria-label="Quick manga preview"><div class="drawer-head"><div><div class="eyebrow">QUICK PREVIEW</div><h2>Manga</h2></div><button class="icon-btn" data-close-preview>×</button></div><div id="quick-preview-content"></div></aside>
 
