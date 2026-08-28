@@ -2,6 +2,14 @@
 
 All notable changes to **Kirin Backup Viewer** are documented here.
 
+## [1.5.5] - 2026-08-28
+
+### Fixed
+- Corrected the optical alignment of the `×` button inside each Notification card.
+- Corrected the Notification Center header close `×` alignment.
+- Notification `×` glyphs now use their own centered wrapper instead of relying on the browser font baseline.
+- Updated app/service-worker cache to `v155`.
+
 ## [1.5.4] - 2026-08-28
 
 ### Fixed
