@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const SETTINGS_KEY = 'kirin-komikku-viewer-settings-v13';
+  const SETTINGS_KEY = 'kirin-backup-viewer-settings-v15';
   const defaultSettings = {
     theme: 'night',
     sort: 'title',
@@ -15,6 +15,16 @@
     presets: [],
     lastView: 'dashboard',
     backupFlavor: 'komikku',
+    accentColor: '',
+    surfaceStyle: 'solid',
+    ambient: 'off',
+    largeText: false,
+    highContrast: false,
+    reducedMotion: false,
+    blurOnHidden: false,
+    pinnedWidgets: ['health','snapshot','recent','vault','charts','quality','tracking','sources','persona','milestones','toplists'],
+    widgetOrder: ['health','snapshot','recent','vault','charts','quality','tracking','sources','persona','milestones','toplists'],
+    seenVersion: '',
   };
 
   const state = {
@@ -42,6 +52,11 @@
     installPrompt: null,
     lockTimer: null,
     chapterUi: { search: '', filter: 'all', sort: 'number-desc' },
+    notifications: [],
+    commandIndex: 0,
+    commandResults: [],
+    previewMangaIndex: null,
+    dragWidget: null,
   };
 
   const $ = (s, root = document) => root.querySelector(s);
@@ -71,11 +86,25 @@
     mihon:{name:'Mihon',schema:'schema-mihon.proto',exportBase:'mihon-backup'},
   };
   const DAY = 86400000;
+  const VERSION = '1.5.0';
+  const DASHBOARD_WIDGETS = {health:'Backup health',snapshot:'Library snapshot',recent:'Recently read',vault:'Backup Vault',charts:'Activity trends',quality:'Library Quality',tracking:'Tracker Coverage',sources:'Source Reliability',persona:'Reading Persona',milestones:'Milestones',toplists:'Top Lists'};
+  const CHANGELOG_SUMMARY = [
+    'Premium Command Dashboard with draggable/pinnable widgets',
+    'Command palette and universal search (Ctrl+K)',
+    'Notification Center, smart status and health recommendations',
+    'Quick Preview drawer and premium manga details',
+    'Showcase library mode, Focus Mode and Presentation Mode',
+    'Accent customizer, glass/solid surfaces and ambient background',
+    'Skeleton/progressive backup loading, mini charts and animated stats',
+    'Migration Assistant, Library Quality Score, tracker/source coverage',
+    'Reading Persona, milestones, Top Lists and Year in Review',
+    'Premium HTML report, share-safe report, accessibility and session security'
+  ];
 
   function loadSettings() {
     try {
       const current = localStorage.getItem(SETTINGS_KEY);
-      const legacy = localStorage.getItem('kirin-komikku-viewer-settings-v12');
+      const legacy = localStorage.getItem('kirin-komikku-viewer-settings-v13') || localStorage.getItem('kirin-komikku-viewer-settings-v12');
       const raw = JSON.parse(current || legacy || '{}');
       if (raw.theme === 'dark') raw.theme = 'night';
       return { ...defaultSettings, ...raw, presets: Array.isArray(raw.presets) ? raw.presets : [] };
@@ -141,6 +170,7 @@
     if ($('#page-size-select')) $('#page-size-select').value = String(state.pageSize);
     if ($('#performance-mode-select')) $('#performance-mode-select').value = state.settings.performanceMode || 'auto';
     if ($('#auto-lock-select')) $('#auto-lock-select').value = String(state.settings.autoLock || 0);
+    applyPremiumSettings();
     applyPerformanceMode();
     renderSearchPresets();
     armAutoLock();
@@ -217,7 +247,7 @@
 
   async function decodeBackupFile(file, { primary = false } = {}) {
     if (!file) throw new Error('No file selected.');
-    if (primary) { state.debug = []; diag(`Reading ${file.name} · ${formatBytes(file.size)}…`); }
+    if (primary) { state.debug = []; setLoadStage(0, `Reading ${file.name}`); diag(`Reading ${file.name} · ${formatBytes(file.size)}…`); }
     else log(`Comparison: reading ${file.name} · ${formatBytes(file.size)}.`);
 
     const bytes = new Uint8Array(await file.arrayBuffer());
@@ -240,13 +270,13 @@
     let payload = bytes;
     if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
       meta.format = 'GZIP protobuf';
-      if (primary) diag('GZIP header detected · decompressing…');
+      if (primary) { setLoadStage(1, 'Decompressing GZIP'); diag('GZIP header detected · decompressing…'); }
       payload = await gunzip(bytes);
       meta.decodedBytes = payload.length;
       log(`${primary ? 'Primary' : 'Compare'} GZIP OK · ${formatBytes(payload.length)} protobuf payload.`);
     } else log(`${primary ? 'Primary' : 'Compare'} has no GZIP header · decoding as raw protobuf.`);
 
-    if (primary) diag(`Decoding ${appInfo.name} protobuf…`);
+    if (primary) { setLoadStage(2, `Decoding ${appInfo.name} protobuf`); diag(`Decoding ${appInfo.name} protobuf…`); }
     let message;
     try { message = Backup.decode(payload); }
     catch (error) { throw new Error(`${appInfo.name} protobuf decode failed: ${error.message}`); }
@@ -291,6 +321,7 @@
       state.cache = { health: null, duplicates: null, activity: null, searchIndex: null };
       state.quickFilter = '';
       state.page = 1;
+      setLoadStage(3, 'Building indexes');
       buildIndexes();
       $('#loader-view').classList.add('hidden');
       $('#app-view').classList.remove('hidden');
@@ -302,15 +333,20 @@
       populateFilters();
       applySavedSettings();
       updateQuickChipUi();
+      setLoadStage(4, 'Analyzing library');
       renderDashboard();
       renderBackupMetadata();
       applyPerformanceMode();
       const restoredView = ['dashboard','library','explore','analyze','tools'].includes(state.settings.lastView) ? state.settings.lastView : 'dashboard';
       switchView(restoredView);
+      buildNotifications();
+      updatePwaStatus();
+      setTimeout(()=>hideLoadProgress(),220);
     } catch (error) {
       console.error(error);
       diag(error.message || String(error), true);
       toast('Could not open this backup');
+      hideLoadProgress();
     } finally {
       $('#file-input').value = '';
     }
@@ -479,7 +515,7 @@
       const total = m.chapters.length;
       const read = readCount(m);
       const pct = total ? Math.round(read / total * 100) : 0;
-      return `<article class="manga-card"><button class="card-hit" data-manga-index="${idx}"><div class="cover">${coverHtml(m)}<span class="badge">${unreadCount(m)} unread</span></div><div class="manga-card-body"><div class="manga-title">${esc(displayTitle(m))}</div><div class="manga-sub"><span>${esc(displayStatus(m))}</span><span>${read}/${total}</span></div><div class="progress"><i style="width:${pct}%"></i></div></div></button></article>`;
+      return `<article class="manga-card"><button class="quick-preview-btn" type="button" data-quick-preview="${idx}" aria-label="Quick preview">•••</button><button class="card-hit" data-manga-index="${idx}"><div class="cover">${coverHtml(m)}<span class="badge">${unreadCount(m)} unread</span></div><div class="manga-card-body"><div class="manga-title">${esc(displayTitle(m))}</div><div class="manga-sub"><span>${esc(displayStatus(m))}</span><span>${read}/${total}</span></div><div class="progress"><i style="width:${pct}%"></i></div></div></button></article>`;
     }).join('');
     $('#empty-library').classList.toggle('hidden', pageItems.length > 0);
     const pages = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
@@ -565,7 +601,7 @@
       ['Bookmarks', bookmarks, `${mangas.filter(m=>m.tracking.length).length} tracked`],
       ['Health', `${health.score}%`, health.score >= 90 ? 'Looks clean' : 'Review issues'],
     ];
-    $('#dashboard-cards').innerHTML = stats.map(([label,val,sub]) => `<div class="stat-card"><strong>${typeof val==='number'?val.toLocaleString():esc(val)}</strong><span>${esc(label)}</span><small>${esc(sub)}</small></div>`).join('');
+    $('#dashboard-cards').innerHTML = stats.map(([label,val,sub]) => {const num=typeof val==='number'?val:(typeof val==='string'&&val.endsWith('%')?Number(val.slice(0,-1)):null);return `<div class="stat-card"><strong ${num!=null?`data-animate-count="${num}" data-suffix="${typeof val==='string'&&val.endsWith('%')?'%':''}"`:''}>${typeof val==='number'?val.toLocaleString():esc(val)}</strong><span>${esc(label)}</span><small>${esc(sub)}</small></div>`}).join('');
 
     const issueCount = Object.values(health.issues).reduce((n,a)=>n+a.length,0);
     $('#dashboard-health').innerHTML = `<div class="health-ring"><div class="health-score" style="--score:${health.score}"><span>${health.score}%</span></div><div><strong>${issueCount ? `${issueCount.toLocaleString()} issue flags` : 'No obvious issues found'}</strong><p class="muted">${health.duplicateGroups} strong duplicate group${health.duplicateGroups===1?'':'s'} · ${health.issues.unknownSource.length} unknown source entr${health.issues.unknownSource.length===1?'y':'ies'}.</p></div></div>`;
@@ -583,6 +619,7 @@
 
     const recent = getActivity().slice(0,5);
     $('#dashboard-recent').innerHTML = recent.length ? recent.map(r => `<button class="card-hit" data-manga-index="${r.mangaIndex}"><div class="mini-row">${displayCover(r.manga)?`<img class="mini-thumb" src="${esc(displayCover(r.manga))}" alt="" referrerpolicy="no-referrer">`:`<div class="mini-thumb cover-fallback">◇</div>`}<div><strong>${esc(displayTitle(r.manga))}</strong><small>${esc(sourceName(r.manga))}</small></div><small>${new Date(r.when).toLocaleDateString()}</small></div></button>`).join('') : '<p class="muted">No reading history found.</p>';
+    renderPremiumDashboard();
   }
 
   function renderCategoryExplorer() {
@@ -679,7 +716,7 @@
   function switchExploreTab(name) {
     state.exploreTab = name;
     $$('#explore-tabs [data-explore]').forEach(b=>b.classList.toggle('active',b.dataset.explore===name));
-    ['categories','sources','trackers','activity','genres','creators','smart','growth','heatmap'].forEach(v=>$(`#explore-${v}`)?.classList.toggle('hidden',v!==name));
+    ['categories','sources','trackers','activity','genres','creators','smart','growth','heatmap','year-review'].forEach(v=>$(`#explore-${v}`)?.classList.toggle('hidden',v!==name));
     if (name === 'categories') renderCategoryExplorer();
     if (name === 'sources') renderSourceExplorer();
     if (name === 'trackers') renderTrackerOverview();
@@ -689,12 +726,13 @@
     if (name === 'smart') renderSmartCollections();
     if (name === 'growth') renderLibraryGrowth();
     if (name === 'heatmap') renderHeatmap();
+    if (name === 'year-review') renderYearReview();
   }
 
   function renderHealth() {
     const h = computeHealth();
     const cls = h.score >= 90 ? 'good' : h.score >= 70 ? 'warn' : 'bad';
-    $('#health-summary').innerHTML = `<div class="health-hero"><div class="health-big ${cls}">${h.score}%</div><div><h3>${h.score>=90?'Backup looks healthy':h.score>=70?'Some items need attention':'Backup has several warning signs'}</h3><p class="muted">This is a viewer-side consistency check, not Komikku's official validator.</p></div></div>`;
+    $('#health-summary').innerHTML = `<div class="health-hero"><div class="health-big ${cls}">${h.score}%</div><div><h3>${h.score>=90?'Backup looks healthy':h.score>=70?'Some items need attention':'Backup has several warning signs'}</h3><p class="muted">This is a viewer-side consistency check, not an official Komikku/Mihon validator.</p></div></div><div class="health-rec-mini">${healthRecommendations().slice(0,3).map(([n,t,,tab])=>`<button class="recommendation-row" data-analysis-tab="${tab}"><span class="rec-icon">→</span><span><b>${esc(n)}</b><small>${esc(t)}</small></span></button>`).join('')}</div>`;
     const cards = [
       ['Missing titles',h.issues.missingTitle.length,'bad'],['Missing covers',h.issues.missingCover.length,h.issues.missingCover.length?'warn':'ok'],['No chapters',h.issues.noChapters.length,h.issues.noChapters.length?'warn':'ok'],['Unknown sources',h.issues.unknownSource.length,h.issues.unknownSource.length?'bad':'ok'],['Broken category refs',h.issues.danglingCategory.length,h.issues.danglingCategory.length?'bad':'ok'],['Strong duplicate groups',h.duplicateGroups,h.duplicateGroups?'warn':'ok'],
     ];
@@ -799,15 +837,15 @@
     const plan=state.repairPlan||computeRepairPlan(); if(!plan.changes.length){toast('No safe repairs to apply');return;}
     if(!confirm(`Apply ${plan.changes.length} safe category-reference repair${plan.changes.length===1?'':'s'} to the in-memory backup?`))return;
     plan.changes.forEach(x=>{const m=state.data.backupManga[x.index];if(m)m.categories=m.categories.filter(id=>!x.remove.includes(key64(id)));});
-    state.cache={health:null,duplicates:null,activity:null,searchIndex:null}; buildIndexes(); populateFilters(); renderRepairPreview(); renderDashboard(); toast('Safe repairs applied in memory');
+    state.cache={health:null,duplicates:null,activity:null,searchIndex:null}; state.notifications=[]; renderNotifications(); buildIndexes(); populateFilters(); renderRepairPreview(); renderDashboard(); toast('Safe repairs applied in memory');
   }
 
-  function exportRepairPlan() { const plan=state.repairPlan||computeRepairPlan(); downloadBlob(new Blob([JSON.stringify(plan,null,2)],{type:'application/json'}),datedName('komikku-repair-plan','json')); }
+  function exportRepairPlan() { const plan=state.repairPlan||computeRepairPlan(); downloadBlob(new Blob([JSON.stringify(plan,null,2)],{type:'application/json'}),datedName('kirin-repair-plan','json')); }
 
   function switchAnalysisTab(name) {
     state.analysisTab = name;
     $$('#analysis-tabs [data-analysis]').forEach(b=>b.classList.toggle('active',b.dataset.analysis===name));
-    ['health','duplicates','compare','insights','stale','source-health','orphans','repair'].forEach(v=>$(`#analysis-${v}`)?.classList.toggle('hidden',v!==name));
+    ['health','duplicates','compare','insights','stale','source-health','orphans','repair','migration','quality'].forEach(v=>$(`#analysis-${v}`)?.classList.toggle('hidden',v!==name));
     if (name === 'health') renderHealth();
     if (name === 'duplicates') renderDuplicates();
     if (name === 'insights') renderInsights();
@@ -815,6 +853,8 @@
     if (name === 'source-health') renderSourceHealth();
     if (name === 'orphans') renderOrphans();
     if (name === 'repair') renderRepairPreview();
+    if (name === 'migration') renderMigrationAssistant();
+    if (name === 'quality') renderQualityAnalysis();
   }
 
   function mangaCompareKey(m) {
@@ -869,6 +909,7 @@
       state.diff = compareBackups(state.data, data);
       status.textContent = `Compared with ${file.name} ✓ · ${data.backupManga.length.toLocaleString()} manga.`;
       renderComparison();
+      buildNotifications();
       toast('Comparison ready');
     } catch (error) {
       console.error(error);
@@ -885,20 +926,23 @@
     const cards = [['Comparison only',d.added.length],['Current only',d.removed.length],['Changed',d.changed.length],['New chapters',d.newChapters],['Category changes',d.categoryChanges]];
     $('#compare-summary').innerHTML = cards.map(([k,v])=>`<div class="stat-card"><strong>${v.toLocaleString()}</strong><span>${esc(k)}</span></div>`).join('');
     $('#compare-summary').classList.remove('hidden');
+    renderCompareTimeline();
     const renderItems = (items,type) => items.slice(0,200).map((x,i)=>type==='changed'?`<button class="diff-row diff-button" data-compare-change="${i}"><strong>${esc(x.title)}</strong><br><span class="muted">${esc(x.changes.join(', '))}</span></button>`:`<div class="diff-row"><strong>${esc(x.title)}</strong><br><span class="muted">${esc(x.url||x.source)}</span></div>`).join('') || '<div class="muted">None</div>';
     $('#compare-details').innerHTML = `<div class="diff-column"><h3>Comparison only +${d.added.length}</h3><div class="diff-list">${renderItems(d.added,'added')}</div></div><div class="diff-column"><h3>Current only −${d.removed.length}</h3><div class="diff-list">${renderItems(d.removed,'removed')}</div></div><div class="diff-column"><h3>Changed ~${d.changed.length}</h3><div class="diff-list">${renderItems(d.changed,'changed')}</div></div><div id="compare-change-detail" class="compare-change-detail"><p class="muted">Select a changed manga to inspect field differences.</p></div>`;
     $('#compare-details').classList.remove('hidden'); $('#export-diff').classList.remove('hidden');
   }
 
-  function renderCompareChangeDetail(i) { const x=state.diff?.changed?.[i], el=$('#compare-change-detail'); if(!x||!el)return; const rows=[['Title',x.before.title,x.after.title],['Chapters',x.before.chapters,x.after.chapters],['Unread',x.beforeUnread,x.afterUnread],['Bookmarks',x.beforeBookmarks,x.afterBookmarks],['Source',x.before.source,x.after.source],['URL',x.before.url,x.after.url]]; el.innerHTML=`<h3>${esc(x.title)}</h3><p class="muted">Changed: ${esc(x.changes.join(', '))}</p><div class="compare-field-grid">${rows.map(([k,a,b])=>`<div><b>${esc(k)}</b><span>${esc(a)}</span><span>→</span><span>${esc(b)}</span></div>`).join('')}</div>`; }
+  function renderCompareChangeDetail(i) { const x=state.diff?.changed?.[i], el=$('#compare-change-detail'); if(!x||!el)return; const rows=[['Title',x.before.title,x.after.title],['Chapters',x.before.chapters,x.after.chapters],['Unread',x.beforeUnread,x.afterUnread],['Bookmarks',x.beforeBookmarks,x.afterBookmarks],['Source',x.before.source,x.after.source],['URL',x.before.url,x.after.url]]; el.innerHTML=`<h3>${esc(x.title)}</h3><p class="muted">Changed: ${esc(x.changes.join(', '))}</p><div class="compare-field-grid">${rows.map(([k,a,b])=>`<div class="${String(a)!==String(b)?'changed-field':''}"><b>${esc(k)}</b><span>${esc(a)}</span><span>→</span><span>${esc(b)}</span></div>`).join('')}</div>`; }
 
   function showManga(index) {
+    closeQuickPreview();
     const m = state.data?.backupManga?.[Number(index)]; if (!m) return;
     state.modalMangaIndex = Number(index); state.chapterUi={search:'',filter:'all',sort:'number-desc'};
     const cats=m.categories.map(id=>state.categoryMap.get(key64(id))?.name).filter(Boolean), genres=displayGenres(m), source=sourceName(m);
     const trackingHtml=m.tracking.length?m.tracking.map(t=>{const info=trackerInfo(t.syncId);return `<div class="tracking-card detailed-tracker"><span class="tracker-logo">${esc(info.mark)}</span><div><strong>${esc(info.name)} · ${esc(t.title||displayTitle(m))}</strong><small>Progress ${esc(t.lastChapterRead??0)} / ${esc(t.totalChapters??'—')} · Score ${esc(t.score??'—')} · Status ${esc(t.status??'—')}</small><small>Started ${trackerDate(t.startedReadingDate)} · Finished ${trackerDate(t.finishedReadingDate)}${t.private?' · Private':''}</small>${t.trackingUrl?`<a class="tracker-link" href="${esc(t.trackingUrl)}" target="_blank" rel="noopener noreferrer">Open tracker ↗</a>`:''}</div></div>`}).join(''):'<div class="empty-state">No tracking entries.</div>';
     const mangaLink=/^https?:\/\//i.test(m.url||'')?`<a class="source-open-link" href="${esc(m.url)}" target="_blank" rel="noopener noreferrer">Open source page ↗</a>`:'';
-    $('#modal-content').innerHTML=`<div class="detail-hero"><div>${displayCover(m)?`<img class="detail-cover" src="${esc(displayCover(m))}" alt="" referrerpolicy="no-referrer">`:`<div class="detail-cover cover-fallback">◇</div>`}</div><div><div class="eyebrow">${esc(source)}</div><h2 id="modal-title" class="detail-title">${esc(displayTitle(m))}</h2>${mangaLink}<div class="chips">${cats.map(c=>`<button class="chip chip-button" data-search-jump="category:&quot;${esc(c)}&quot;">${esc(c)}</button>`).join('')}${genres.slice(0,12).map(g=>`<button class="chip chip-button" data-search-jump="genre:&quot;${esc(g)}&quot;">${esc(g)}</button>`).join('')}</div><div class="metadata"><div><b>Author</b>${displayAuthor(m)?`<button class="inline-link" data-search-jump="author:&quot;${esc(displayAuthor(m))}&quot;">${esc(displayAuthor(m))}</button>`:'—'}</div><div><b>Artist</b>${displayArtist(m)?`<button class="inline-link" data-search-jump="artist:&quot;${esc(displayArtist(m))}&quot;">${esc(displayArtist(m))}</button>`:'—'}</div><div><b>Status</b>${esc(displayStatus(m))}</div><div><b>Progress</b>${readCount(m)} / ${m.chapters.length} read</div><div><b>Bookmarks</b>${bookmarkCount(m)}</div><div><b>Tracking</b>${m.tracking.length}</div></div></div></div>
+    const cover=displayCover(m); const pct=m.chapters.length?Math.round(readCount(m)/m.chapters.length*100):0;
+    $('#modal-content').innerHTML=`<div class="detail-hero premium-detail-hero">${cover?`<div class="detail-backdrop" style="background-image:url('${esc(cover).replace(/'/g,'&#39;')}')"></div>`:''}<div>${displayCover(m)?`<img class="detail-cover" src="${esc(displayCover(m))}" alt="" referrerpolicy="no-referrer">`:`<div class="detail-cover cover-fallback">◇</div>`}</div><div><div class="eyebrow">${esc(source)}</div><h2 id="modal-title" class="detail-title">${esc(displayTitle(m))}</h2>${mangaLink}<div class="chips">${cats.map(c=>`<button class="chip chip-button" data-search-jump="category:&quot;${esc(c)}&quot;">${esc(c)}</button>`).join('')}${genres.slice(0,12).map(g=>`<button class="chip chip-button" data-search-jump="genre:&quot;${esc(g)}&quot;">${esc(g)}</button>`).join('')}</div><div class="metadata"><div><b>Author</b>${displayAuthor(m)?`<button class="inline-link" data-search-jump="author:&quot;${esc(displayAuthor(m))}&quot;">${esc(displayAuthor(m))}</button>`:'—'}</div><div><b>Artist</b>${displayArtist(m)?`<button class="inline-link" data-search-jump="artist:&quot;${esc(displayArtist(m))}&quot;">${esc(displayArtist(m))}</button>`:'—'}</div><div><b>Status</b>${esc(displayStatus(m))}</div><div><b>Progress</b>${readCount(m)} / ${m.chapters.length} read</div><div><b>Bookmarks</b>${bookmarkCount(m)}</div><div><b>Tracking</b>${m.tracking.length}</div></div><div class="detail-progress-wrap"><div class="coverage-bar"><i style="width:${pct}%"></i></div><b>${pct}% read</b></div></div></div>
       <div class="modal-tabs"><button class="modal-tab active" data-modal-tab="overview">Overview</button><button class="modal-tab" data-modal-tab="chapters">Chapters</button><button class="modal-tab" data-modal-tab="tracking">Tracking${m.tracking.length?` (${m.tracking.length})`:''}</button><button class="modal-tab" data-modal-tab="raw">Raw</button></div>
       <div class="modal-tab-panel" data-modal-panel="overview">${displayDescription(m)?`<p class="description">${esc(displayDescription(m))}</p>`:'<p class="muted">No description stored.</p>'}${m.notes?`<p class="description"><strong>Notes:</strong> ${esc(m.notes)}</p>`:''}<div class="detail-list"><div class="detail-item"><span>Source ID</span><strong>${esc(key64(m.source))}</strong></div><div class="detail-item"><span>Date added</span><strong>${asNum(m.dateAdded)?new Date(asNum(m.dateAdded)).toLocaleString():'—'}</strong></div><div class="detail-item"><span>Last read</span><strong>${lastRead(m)?new Date(lastRead(m)).toLocaleString():'—'}</strong></div><div class="detail-item"><span>Merged references</span><strong>${m.mergedMangaReferences.length}</strong></div></div></div>
       <div class="modal-tab-panel hidden" data-modal-panel="chapters"><div class="chapter-head"><h3>Chapters</h3><span class="muted">${m.chapters.length.toLocaleString()} total</span></div><div class="chapter-toolbar"><label class="searchbox"><span>⌕</span><input id="chapter-search" type="search" placeholder="Search chapter or scanlator"></label><select id="chapter-filter"><option value="all">All</option><option value="unread">Unread</option><option value="read">Read</option><option value="bookmarked">Bookmarked</option></select><select id="chapter-sort"><option value="number-desc">Newest number</option><option value="number-asc">Oldest number</option><option value="upload-desc">Newest upload</option><option value="upload-asc">Oldest upload</option><option value="source-desc">Source order ↓</option><option value="source-asc">Source order ↑</option></select></div><div id="chapter-result-meta" class="result-meta"></div><div id="chapter-list" class="chapter-list"></div></div>
@@ -990,21 +1034,21 @@
 
   function csvEscape(v){const s=String(v??'');return (s.includes('\"')||s.includes(',')||s.includes('\n'))?`\"${s.replace(/\"/g,'\"\"')}\"`:s;}
   function downloadCsv(rows,name){const text='\ufeff'+rows.map(r=>r.map(csvEscape).join(',')).join('\r\n');downloadBlob(new Blob([text],{type:'text/csv;charset=utf-8'}),name);}
-  function exportLibraryCsv(){if(!state.data)return;const rows=[['Title','Author','Artist','Source','Status','Chapters','Read','Unread','Bookmarks','Trackers','Date Added','Last Read','URL']];state.data.backupManga.forEach(m=>rows.push([displayTitle(m),displayAuthor(m),displayArtist(m),sourceName(m),displayStatus(m),m.chapters.length,readCount(m),unreadCount(m),bookmarkCount(m),m.tracking.map(t=>trackerInfo(t.syncId).name).join(' | '),asNum(m.dateAdded)?new Date(asNum(m.dateAdded)).toISOString():'',lastRead(m)?new Date(lastRead(m)).toISOString():'',m.url||'']));downloadCsv(rows,datedName('komikku-library','csv'));}
+  function exportLibraryCsv(){if(!state.data)return;const rows=[['Title','Author','Artist','Source','Status','Chapters','Read','Unread','Bookmarks','Trackers','Date Added','Last Read','URL']];state.data.backupManga.forEach(m=>rows.push([displayTitle(m),displayAuthor(m),displayArtist(m),sourceName(m),displayStatus(m),m.chapters.length,readCount(m),unreadCount(m),bookmarkCount(m),m.tracking.map(t=>trackerInfo(t.syncId).name).join(' | '),asNum(m.dateAdded)?new Date(asNum(m.dateAdded)).toISOString():'',lastRead(m)?new Date(lastRead(m)).toISOString():'',m.url||'']));downloadCsv(rows,datedName('kirin-library','csv'));}
   function healthRows(){const h=computeHealth();const rows=[['Issue','Count']];[['Missing title',h.issues.missingTitle.length],['Missing cover',h.issues.missingCover.length],['No chapters',h.issues.noChapters.length],['Unknown source',h.issues.unknownSource.length],['Broken category ref',h.issues.danglingCategory.length],['Strong duplicate groups',h.duplicateGroups]].forEach(x=>rows.push(x));return rows;}
-  function exportHealthCsv(){downloadCsv(healthRows(),datedName('komikku-health','csv'));}
-  function exportHealthJson(){const payload={file:state.fileName,health:computeHealth(),duplicates:computeDuplicates(),orphans:computeOrphans(),sourceHealth:sourceHealthRows()};downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),datedName('komikku-health','json'));}
+  function exportHealthCsv(){downloadCsv(healthRows(),datedName('kirin-health','csv'));}
+  function exportHealthJson(){const payload={file:state.fileName,health:computeHealth(),duplicates:computeDuplicates(),orphans:computeOrphans(),sourceHealth:sourceHealthRows()};downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),datedName('kirin-health','json'));}
 
   function openThemePicker(){updateThemeUi();$('#theme-modal').classList.remove('hidden');document.body.style.overflow='hidden';}
   function closeThemePicker(){ $('#theme-modal').classList.add('hidden'); if($('#modal').classList.contains('hidden')&&$('#report-modal').classList.contains('hidden'))document.body.style.overflow=''; }
-  function setTheme(name){if(!(name in THEMES))return;saveSettings({theme:name});updateThemeUi();closeThemePicker();toast(`Theme: ${THEMES[name].name}`);}
+  function setTheme(name){if(!(name in THEMES))return;saveSettings({theme:name});updateThemeUi();applyPremiumSettings();closeThemePicker();toast(`Theme: ${THEMES[name].name}`);}
 
   function applyPerformanceMode(){const mode=state.settings.performanceMode||'auto';const enabled=mode==='on'||(mode==='auto'&&((state.data?.backupManga?.length||0)>=5000||matchMedia('(max-width:680px)').matches));document.body.classList.toggle('performance-mode',enabled);}
   function lockViewer(){if(!state.data)return;setMobileMenu(false);document.body.classList.add('viewer-locked');$('#privacy-lock').classList.remove('hidden');document.body.style.overflow='hidden';}
   function unlockViewer(){document.body.classList.remove('viewer-locked');$('#privacy-lock').classList.add('hidden');document.body.style.overflow='';armAutoLock();}
   function armAutoLock(){clearTimeout(state.lockTimer);const min=Number(state.settings.autoLock||0);if(min>0&&state.data&&!document.body.classList.contains('viewer-locked'))state.lockTimer=setTimeout(lockViewer,min*60000);}
 
-  function exportViewerSettings(){const payload={app:'Kirin Backup Viewer',version:'1.4.0',settings:state.settings};downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),'kirin-backup-viewer-settings.json');}
+  function exportViewerSettings(){const payload={app:'Kirin Backup Viewer',version:VERSION,settings:state.settings};downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),'kirin-backup-viewer-settings.json');}
   async function importViewerSettings(file){if(!file)return;try{const obj=JSON.parse(await file.text());const incoming=obj.settings||obj;if(!incoming||typeof incoming!=='object')throw new Error('Invalid settings file');state.settings={...defaultSettings,...incoming};localStorage.setItem(SETTINGS_KEY,JSON.stringify(state.settings));applySavedSettings();if(state.data)applyFilters(true);toast('Viewer settings imported');}catch(e){toast(`Import failed: ${e.message}`);}finally{$('#settings-input').value='';}}
 
   async function installApp(){if(state.installPrompt){state.installPrompt.prompt();await state.installPrompt.userChoice;state.installPrompt=null;return;}toast('Use browser “Add to Home screen” if install is not offered.');}
@@ -1044,7 +1088,7 @@
   function exportDiff() {
     if (!state.diff) return;
     const payload = { currentBackup: state.fileName, comparisonBackup: state.compareFileName, ...state.diff };
-    downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}), datedName('komikku-backup-diff','json'));
+    downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}), datedName('kirin-backup-diff','json'));
   }
 
   function openSummaryReport() {
@@ -1052,7 +1096,7 @@
     const mangas=state.data.backupManga, health=computeHealth(), dup=computeDuplicates(), activity=getActivity();
     const chapters=mangas.reduce((n,m)=>n+m.chapters.length,0), unread=mangas.reduce((n,m)=>n+unreadCount(m),0), bookmarks=mangas.reduce((n,m)=>n+bookmarkCount(m),0);
     const sources=countValues(mangas.map(sourceName)).slice(0,10), genres=countValues(mangas.flatMap(displayGenres)).slice(0,10);
-    $('#report-content').innerHTML = `<h1 id="report-title" class="report-title">Komikku Backup Summary</h1><p>${esc(state.fileName)} · generated ${new Date().toLocaleString()}</p><div class="report-grid"><div class="report-card"><strong>${mangas.length}</strong>Manga</div><div class="report-card"><strong>${chapters}</strong>Chapters</div><div class="report-card"><strong>${unread}</strong>Unread</div><div class="report-card"><strong>${health.score}%</strong>Health</div></div><div class="report-section"><h3>Backup health</h3><table class="report-table"><tr><th>Missing covers</th><td>${health.issues.missingCover.length}</td><th>Unknown sources</th><td>${health.issues.unknownSource.length}</td></tr><tr><th>No chapters</th><td>${health.issues.noChapters.length}</td><th>Strong duplicate groups</th><td>${dup.strong.length}</td></tr><tr><th>Bookmarks</th><td>${bookmarks}</td><th>Reading events</th><td>${activity.length}</td></tr></table></div><div class="report-section"><h3>Top sources</h3><table class="report-table">${sources.map(([n,c])=>`<tr><td>${esc(n)}</td><td>${c}</td></tr>`).join('')}</table></div><div class="report-section"><h3>Top genres</h3><table class="report-table">${genres.map(([n,c])=>`<tr><td>${esc(n)}</td><td>${c}</td></tr>`).join('')}</table></div>`;
+    $('#report-content').innerHTML = `<h1 id="report-title" class="report-title">Kirin Backup Summary</h1><p>${esc(state.fileName)} · generated ${new Date().toLocaleString()}</p><div class="report-grid"><div class="report-card"><strong>${mangas.length}</strong>Manga</div><div class="report-card"><strong>${chapters}</strong>Chapters</div><div class="report-card"><strong>${unread}</strong>Unread</div><div class="report-card"><strong>${health.score}%</strong>Health</div></div><div class="report-section"><h3>Backup health</h3><table class="report-table"><tr><th>Missing covers</th><td>${health.issues.missingCover.length}</td><th>Unknown sources</th><td>${health.issues.unknownSource.length}</td></tr><tr><th>No chapters</th><td>${health.issues.noChapters.length}</td><th>Strong duplicate groups</th><td>${dup.strong.length}</td></tr><tr><th>Bookmarks</th><td>${bookmarks}</td><th>Reading events</th><td>${activity.length}</td></tr></table></div><div class="report-section"><h3>Top sources</h3><table class="report-table">${sources.map(([n,c])=>`<tr><td>${esc(n)}</td><td>${c}</td></tr>`).join('')}</table></div><div class="report-section"><h3>Top genres</h3><table class="report-table">${genres.map(([n,c])=>`<tr><td>${esc(n)}</td><td>${c}</td></tr>`).join('')}</table></div>`;
     $('#report-modal').classList.remove('hidden'); document.body.style.overflow='hidden';
   }
 
@@ -1081,16 +1125,240 @@
     const sec = Math.round(ms/1000); if (sec<60) return `${sec}s`; const min=Math.round(sec/60); if(min<60)return `${min}m`; return `${(min/60).toFixed(1)}h`;
   }
 
+
+  function sourceMark(name='') {
+    const words=String(name).replace(/[^a-z0-9]+/gi,' ').trim().split(/\s+/).filter(Boolean);
+    return (words.length>1?words.slice(0,2).map(x=>x[0]).join(''):String(name).slice(0,2)).toUpperCase()||'?';
+  }
+
+  function applyPremiumSettings() {
+    const s=state.settings;
+    const root=document.documentElement;
+    if(s.accentColor) root.style.setProperty('--accent',s.accentColor); else root.style.removeProperty('--accent');
+    document.body.classList.toggle('surface-glass',s.surfaceStyle==='glass');
+    document.body.classList.toggle('ambient-background',s.ambient==='on');
+    document.body.classList.toggle('large-text',!!s.largeText);
+    document.body.classList.toggle('high-contrast',!!s.highContrast);
+    document.body.classList.toggle('reduced-motion',!!s.reducedMotion);
+    if($('#accent-color-input')) $('#accent-color-input').value=s.accentColor||THEMES[state.settings.theme]?.meta||'#8499ff';
+    if($('#theme-accent-input')) $('#theme-accent-input').value=s.accentColor||THEMES[state.settings.theme]?.meta||'#8499ff';
+    if($('#surface-style-select')) $('#surface-style-select').value=s.surfaceStyle||'solid';
+    if($('#theme-surface-select')) $('#theme-surface-select').value=s.surfaceStyle||'solid';
+    if($('#ambient-select')) $('#ambient-select').value=s.ambient||'off';
+    if($('#theme-ambient-select')) $('#theme-ambient-select').value=s.ambient||'off';
+    if($('#large-text-toggle')) $('#large-text-toggle').checked=!!s.largeText;
+    if($('#high-contrast-toggle')) $('#high-contrast-toggle').checked=!!s.highContrast;
+    if($('#reduced-motion-toggle')) $('#reduced-motion-toggle').checked=!!s.reducedMotion;
+    if($('#blur-hidden-toggle')) $('#blur-hidden-toggle').checked=!!s.blurOnHidden;
+    updateVersionBadge();
+  }
+
+  function setAccent(value) { saveSettings({accentColor:value||''}); applyPremiumSettings(); updateThemeUi(); }
+  function setSurface(value) { saveSettings({surfaceStyle:value}); applyPremiumSettings(); }
+  function setAmbient(value) { saveSettings({ambient:value}); applyPremiumSettings(); }
+
+  function setLoadStage(index,title) {
+    const overlay=$('#backup-loading-overlay'); if(!overlay)return;
+    overlay.classList.remove('hidden');
+    $('#loading-stage-title').textContent=title||'Opening backup';
+    $('#loading-progress-bar').style.width=`${Math.max(8,Math.min(100,(index+1)*20))}%`;
+    $$('#loading-stage-list span').forEach((x,i)=>x.classList.toggle('active',i<=index));
+  }
+  function hideLoadProgress(){ $('#backup-loading-overlay')?.classList.add('hidden'); }
+
+  function animateDashboardCounters() {
+    $$('#dashboard-cards [data-animate-count]').forEach(el=>{
+      const target=Number(el.dataset.animateCount)||0, suffix=el.dataset.suffix||'', duration=460, start=performance.now();
+      const tick=now=>{const p=Math.min(1,(now-start)/duration), eased=1-Math.pow(1-p,3);el.textContent=Math.round(target*eased).toLocaleString()+suffix;if(p<1)requestAnimationFrame(tick);};
+      requestAnimationFrame(tick);
+    });
+  }
+
+  function sparklineSvg(values) {
+    const vals=values.length?values:[0], max=Math.max(1,...vals), min=Math.min(0,...vals), span=Math.max(1,max-min), w=180,h=40;
+    const pts=vals.map((v,i)=>`${vals.length===1?0:i/(vals.length-1)*w},${h-((v-min)/span)*(h-5)-2}`);
+    const line=pts.join(' '), area=`0,${h} ${line} ${w},${h}`;
+    return `<svg class="sparkline" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polygon class="area" points="${area}"></polygon><polyline points="${line}"></polyline></svg>`;
+  }
+
+  function activityBuckets(days=14) {
+    const out=Array(days).fill(0), today=new Date();today.setHours(0,0,0,0);
+    getActivity().forEach(r=>{const diff=Math.floor((today-new Date(r.when).setHours(0,0,0,0))/DAY);if(diff>=0&&diff<days)out[days-1-diff]++;});
+    return out;
+  }
+  function addedBuckets(months=12) {
+    const now=new Date(), keys=[], map=new Map();
+    for(let i=months-1;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);const k=`${d.getFullYear()}-${d.getMonth()}`;keys.push(k);map.set(k,0);}
+    state.data.backupManga.forEach(m=>{const n=asNum(m.dateAdded);if(!n)return;const d=new Date(n),k=`${d.getFullYear()}-${d.getMonth()}`;if(map.has(k))map.set(k,map.get(k)+1);});
+    return keys.map(k=>map.get(k));
+  }
+
+  function computeQualityScore() {
+    const mangas=state.data?.backupManga||[], total=Math.max(1,mangas.length), dup=computeDuplicates();
+    const dims={
+      Covers:Math.round(mangas.filter(m=>displayCover(m)).length/total*100),
+      Categories:Math.round(mangas.filter(m=>m.categories.length).length/total*100),
+      Chapters:Math.round(mangas.filter(m=>m.chapters.length).length/total*100),
+      Sources:Math.round(mangas.filter(m=>state.sourceMap.has(key64(m.source))).length/total*100),
+      History:Math.round(mangas.filter(hasHistory).length/total*100),
+      Tracking:Math.round(mangas.filter(m=>m.tracking.length).length/total*100),
+      Uniqueness:Math.max(0,Math.round(100-(dup.strong.flat().length/total*100))),
+    };
+    const score=Math.round(dims.Covers*.12+dims.Categories*.08+dims.Chapters*.2+dims.Sources*.2+dims.History*.12+dims.Tracking*.08+dims.Uniqueness*.2);
+    return {score,dims};
+  }
+
+  function trackerCoverage() {
+    const mangas=state.data?.backupManga||[], tracked=mangas.filter(m=>m.tracking.length).length, by=new Map();
+    mangas.forEach(m=>m.tracking.forEach(t=>{const n=trackerInfo(t.syncId).name;by.set(n,(by.get(n)||0)+1);}));
+    return {tracked,total:mangas.length,pct:mangas.length?Math.round(tracked/mangas.length*100):0,by:[...by.entries()].sort((a,b)=>b[1]-a[1])};
+  }
+
+  function sourceReliabilityRows() {
+    const map=new Map();
+    state.data.backupManga.forEach(m=>{const name=sourceName(m),r=map.get(name)||{name,total:0,noChapters:0,noCover:0,unknown:0};r.total++;if(!m.chapters.length)r.noChapters++;if(!displayCover(m))r.noCover++;if(!state.sourceMap.has(key64(m.source)))r.unknown++;map.set(name,r);});
+    return [...map.values()].map(r=>({...r,score:clamp(Math.round(100-(r.noChapters/r.total*45+r.noCover/r.total*15+r.unknown/r.total*60)),0,100)})).sort((a,b)=>b.total-a.total);
+  }
+
+  function readingPersona() {
+    const mangas=state.data.backupManga, read=mangas.reduce((n,m)=>n+readCount(m),0), bookmarks=mangas.reduce((n,m)=>n+bookmarkCount(m),0), completed=mangas.filter(m=>(asNum(m.customStatus)||asNum(m.status))===2&&unreadCount(m)===0).length, activity=getActivity().length;
+    if(activity>1000||read>5000)return {name:'Power Reader',desc:'A large amount of reading history and chapter progress is stored in this backup.'};
+    if(bookmarks>Math.max(50,mangas.length*.2))return {name:'Curator',desc:'Bookmarks are used heavily across the library.'};
+    if(completed>mangas.length*.35)return {name:'Completionist',desc:'A strong share of the library is fully read and completed.'};
+    if(mangas.length>3000)return {name:'Archivist',desc:'This backup is dominated by a very large collected library.'};
+    if(activity>mangas.length*.7)return {name:'Active Reader',desc:'Reading history is spread across a large portion of the library.'};
+    return {name:'Library Explorer',desc:'A balanced mix of collecting, reading and tracking behavior.'};
+  }
+
+  function milestoneData() {
+    const mangas=state.data.backupManga, chapters=mangas.reduce((n,m)=>n+m.chapters.length,0), read=mangas.reduce((n,m)=>n+readCount(m),0), tracked=mangas.filter(m=>m.tracking.length).length, events=getActivity().length;
+    return [['1K Library',mangas.length>=1000,`${mangas.length.toLocaleString()} manga`],['10K Chapters',chapters>=10000,`${chapters.toLocaleString()} chapters`],['5K Read',read>=5000,`${read.toLocaleString()} read`],['500 Tracked',tracked>=500,`${tracked.toLocaleString()} tracked`],['1K Events',events>=1000,`${events.toLocaleString()} history events`],['100 Categories',state.data.backupCategories.length>=100,`${state.data.backupCategories.length} categories`]];
+  }
+
+  function healthRecommendations() {
+    const h=computeHealth(), rec=[];
+    if(h.issues.unknownSource.length)rec.push(['Source migration',`${h.issues.unknownSource.length.toLocaleString()} manga reference unknown sources.`,'Open Migration Assistant','migration']);
+    if(h.issues.noChapters.length)rec.push(['Chapter metadata',`${h.issues.noChapters.length.toLocaleString()} manga have no chapter records.`,'Review Source Health','source-health']);
+    if(h.issues.danglingCategory.length)rec.push(['Category repair',`${h.issues.danglingCategory.length.toLocaleString()} manga contain dangling category references.`,'Preview repair','repair']);
+    if(h.duplicateGroups)rec.push(['Duplicates',`${h.duplicateGroups.toLocaleString()} strong duplicate groups found.`,'Review duplicates','duplicates']);
+    if(h.issues.missingCover.length)rec.push(['Cover quality',`${h.issues.missingCover.length.toLocaleString()} manga have no stored cover URL.`,'Quality details','quality']);
+    if(!rec.length)rec.push(['All clear','No high-priority consistency warning was detected.','Health check','health']);
+    return rec;
+  }
+
+  function renderPremiumDashboard() {
+    if(!state.data)return;
+    const mangas=state.data.backupManga,h=computeHealth(),q=computeQualityScore(),tc=trackerCoverage(),sr=sourceReliabilityRows(),persona=readingPersona();
+    const issues=Object.values(h.issues).reduce((n,a)=>n+a.length,0);
+    $('#smart-status-banner').innerHTML=`<div><strong>${h.score>=90?'Backup looks healthy':h.score>=70?'Backup needs a quick review':'Backup has important warnings'}</strong><small>${esc(BACKUP_APPS[selectedFlavor()].name)} · ${mangas.length.toLocaleString()} manga · ${issues.toLocaleString()} issue flags</small></div><span class="status-pill ${h.score>=90?'good':h.score>=70?'warn':''}">${h.score}% health</span>`;
+    const cc=[['Health',`${h.score}%`,h.score>=90?'Clean':'Review',h.score>=90?'good':h.score>=70?'warn':'bad'],['Quality',`${q.score}%`,q.score>=85?'Premium':'Improve',q.score>=85?'good':'warn'],['Tracking',`${tc.pct}%`,`${tc.tracked.toLocaleString()} manga`,tc.pct>=30?'good':'warn'],['Sources',`${sr.filter(x=>x.score>=90).length}/${sr.length}`, 'Reliable',sr.some(x=>x.score<60)?'warn':'good'],['Duplicates',computeDuplicates().strong.length.toLocaleString(),'Strong groups',computeDuplicates().strong.length?'warn':'good']];
+    $('#command-center').innerHTML=cc.map(x=>`<div class="command-status ${x[3]}"><b>${x[0]}</b><strong>${x[1]}</strong><small>${x[2]}</small></div>`).join('');
+    $('#backup-vault').innerHTML=[['Application',BACKUP_APPS[selectedFlavor()].name],['File',state.fileName],['Size',formatBytes(state.primaryMeta?.size||0)],['Format',state.primaryMeta?.format||'—'],['Opened',new Date().toLocaleString()],['Comparison',state.compareData?state.compareFileName:'Not loaded']].map(x=>`<div class="detail-item"><span>${esc(x[0])}</span><strong>${esc(x[1])}</strong></div>`).join('');
+    const a=activityBuckets(14), growth=addedBuckets(12), unread=mangas.map(unreadCount).sort((a,b)=>b-a).slice(0,20).reverse();
+    $('#dashboard-mini-charts').innerHTML=[['Reading · 14d',a,a.reduce((x,y)=>x+y,0).toLocaleString()],['Library growth · 12m',growth,growth.reduce((x,y)=>x+y,0).toLocaleString()],['Unread spread',unread,Math.max(0,...unread).toLocaleString()]].map(([n,v,t])=>`<div class="mini-chart-row"><span>${esc(n)}</span>${sparklineSvg(v)}<strong>${t}</strong></div>`).join('');
+    $('#dashboard-quality').innerHTML=`<div class="quality-ring-wrap"><div class="quality-ring" style="--score:${q.score}"><strong>${q.score}%</strong></div><div><b>${q.score>=90?'Excellent metadata quality':q.score>=75?'Good library quality':'Quality can improve'}</b><p class="muted">Covers ${q.dims.Covers}% · Sources ${q.dims.Sources}% · Unique ${q.dims.Uniqueness}%</p></div></div>`;
+    $('#dashboard-tracker-coverage').innerHTML=`<div class="tracker-coverage-layout"><div class="coverage-ring" style="--score:${tc.pct}"><strong>${tc.pct}%</strong></div><div><b>${tc.tracked.toLocaleString()} of ${tc.total.toLocaleString()} manga tracked</b><div class="brand-list section-spacer-small">${tc.by.slice(0,4).map(([n,c])=>`<div class="brand-row"><span class="brand-logo">${esc(trackerInfoByName(n).mark)}</span><div><b>${esc(n)}</b><small>${c.toLocaleString()} manga</small></div><strong>${Math.round(c/Math.max(1,mangas.length)*100)}%</strong></div>`).join('')||'<span class="muted">No tracking entries.</span>'}</div></div></div>`;
+    $('#dashboard-source-reliability').innerHTML=`<div class="brand-list">${sr.slice(0,5).map(r=>`<div class="brand-row"><span class="source-logo">${esc(sourceMark(r.name))}</span><div><b>${esc(r.name)}</b><small>${r.total.toLocaleString()} manga</small></div><strong>${r.score}%</strong></div>`).join('')||'<span class="muted">No source data.</span>'}</div>`;
+    $('#dashboard-persona').innerHTML=`<div class="persona-card"><span class="eyebrow">READING PROFILE</span><strong>${esc(persona.name)}</strong><p>${esc(persona.desc)}</p></div>`;
+    $('#dashboard-milestones').innerHTML=milestoneData().map(([n,ok,s])=>`<div class="milestone ${ok?'unlocked':''}"><b>${ok?'✓':'○'} ${esc(n)}</b><small>${esc(s)}</small></div>`).join('');
+    renderTopListCards(); applyDashboardWidgetSettings(); animateDashboardCounters();
+  }
+
+  function trackerInfoByName(name){for(const k of Object.keys(TRACKERS))if(TRACKERS[k].name===name)return TRACKERS[k];return {mark:sourceMark(name)};}
+
+  function topListDefinitions(){
+    const ms=[...state.data.backupManga];
+    return [
+      ['Most Read','read',[...ms].sort((a,b)=>readCount(b)-readCount(a)),m=>`${readCount(m).toLocaleString()} read`],
+      ['Most Unread','unread',[...ms].sort((a,b)=>unreadCount(b)-unreadCount(a)),m=>`${unreadCount(m).toLocaleString()} unread`],
+      ['Oldest Added','oldest',[...ms].filter(m=>asNum(m.dateAdded)).sort((a,b)=>asNum(a.dateAdded)-asNum(b.dateAdded)),m=>new Date(asNum(m.dateAdded)).toLocaleDateString()],
+      ['Newest Added','newest',[...ms].filter(m=>asNum(m.dateAdded)).sort((a,b)=>asNum(b.dateAdded)-asNum(a.dateAdded)),m=>new Date(asNum(m.dateAdded)).toLocaleDateString()],
+      ['Most Chapters','chapters',[...ms].sort((a,b)=>b.chapters.length-a.chapters.length),m=>`${m.chapters.length.toLocaleString()} chapters`],
+      ['Most Bookmarked','bookmarks',[...ms].sort((a,b)=>bookmarkCount(b)-bookmarkCount(a)),m=>`${bookmarkCount(m).toLocaleString()} bookmarks`],
+    ];
+  }
+  function renderTopListCards(){const el=$('#dashboard-top-lists');if(!el)return;el.innerHTML=topListDefinitions().map(([name,key,arr,fmt])=>{const m=arr[0];return `<button class="top-list-card" data-top-list="${key}"><strong>${esc(name)}</strong><small>${m?`${esc(displayTitle(m))} · ${esc(fmt(m))}`:'No data'}</small></button>`}).join('');}
+  function openTopList(key){const def=topListDefinitions().find(x=>x[1]===key);if(!def)return;const [name,,arr,fmt]=def;openGenericModal(`<div class="eyebrow">TOP 10</div><h2 id="modal-title">${esc(name)}</h2><div class="top-ranking-list">${arr.slice(0,10).map((m,i)=>`<button class="card-hit top-ranking-row" data-manga-index="${state.data.backupManga.indexOf(m)}"><span>${i+1}</span><div><strong>${esc(displayTitle(m))}</strong><small>${esc(sourceName(m))}</small></div><strong>${esc(fmt(m))}</strong></button>`).join('')}</div>`);}
+
+  function applyDashboardWidgetSettings(){
+    const pinned=new Set(Array.isArray(state.settings.pinnedWidgets)?state.settings.pinnedWidgets:Object.keys(DASHBOARD_WIDGETS));
+    const order=Array.isArray(state.settings.widgetOrder)?state.settings.widgetOrder:Object.keys(DASHBOARD_WIDGETS);
+    $$('#premium-dashboard-grid [data-dashboard-widget]').forEach(el=>{const k=el.dataset.dashboardWidget;el.classList.toggle('hidden',!pinned.has(k));el.style.order=String(Math.max(0,order.indexOf(k)));});
+  }
+  function openDashboardCustomizer(){
+    const pinned=new Set(state.settings.pinnedWidgets||Object.keys(DASHBOARD_WIDGETS));
+    openGenericModal(`<div class="eyebrow">DASHBOARD</div><h2 id="modal-title">Customize widgets</h2><p class="muted">Pin the widgets you want. Drag visible widgets directly on the dashboard to reorder them.</p><div class="widget-manager">${Object.entries(DASHBOARD_WIDGETS).map(([k,n])=>`<label class="widget-manager-row"><span><strong>${esc(n)}</strong><small>${pinned.has(k)?'Visible':'Hidden'}</small></span><input type="checkbox" data-widget-toggle="${k}" ${pinned.has(k)?'checked':''}></label>`).join('')}</div>`);
+  }
+  function toggleDashboardWidget(key,on){const set=new Set(state.settings.pinnedWidgets||Object.keys(DASHBOARD_WIDGETS));if(on)set.add(key);else set.delete(key);saveSettings({pinnedWidgets:[...set]});applyDashboardWidgetSettings();}
+  function reorderDashboardWidgets(from,to){let order=[...(state.settings.widgetOrder||Object.keys(DASHBOARD_WIDGETS))];const a=order.indexOf(from),b=order.indexOf(to);if(a<0||b<0||a===b)return;order.splice(a,1);order.splice(b,0,from);saveSettings({widgetOrder:order});applyDashboardWidgetSettings();}
+
+  function buildNotifications(){
+    if(!state.data){state.notifications=[];renderNotifications();return;}
+    const h=computeHealth(),q=computeQualityScore(),notes=[];
+    notes.push({type:h.score>=90?'good':'warn',title:`Backup health ${h.score}%`,text:h.score>=90?'No major consistency issue detected.':'Open Health Check for recommended review.'});
+    if(h.issues.unknownSource.length)notes.push({type:'bad',title:'Unknown sources',text:`${h.issues.unknownSource.length.toLocaleString()} manga may need migration.`,tab:'migration'});
+    if(computeDuplicates().strong.length)notes.push({type:'warn',title:'Duplicate groups',text:`${computeDuplicates().strong.length.toLocaleString()} strong duplicate groups detected.`,tab:'duplicates'});
+    if(q.score<80)notes.push({type:'warn',title:'Library quality',text:`Quality score is ${q.score}%. Review missing metadata.`,tab:'quality'});
+    if(state.compareData)notes.push({type:'good',title:'Comparison ready',text:`Compared against ${state.compareFileName}.`,tab:'compare'});
+    state.notifications=notes;renderNotifications();
+  }
+  function renderNotifications(){const list=$('#notification-list'),count=$('#notification-count');if(!list||!count)return;const notes=state.notifications||[];count.textContent=String(notes.length);count.classList.toggle('hidden',!notes.length);list.innerHTML=notes.length?notes.map((n,i)=>`<button class="notification-item ${n.type||''}" data-notification-index="${i}"><strong>${esc(n.title)}</strong><small>${esc(n.text)}</small></button>`).join(''):'<div class="empty-state">No notifications.</div>';}
+  function toggleNotifications(open){$('#notification-drawer').classList.toggle('hidden',!open);if(open)renderNotifications();}
+
+  function openQuickPreview(index){const m=state.data?.backupManga?.[Number(index)];if(!m)return;state.previewMangaIndex=Number(index);const cover=displayCover(m),pct=m.chapters.length?Math.round(readCount(m)/m.chapters.length*100):0;$('#quick-preview-content').innerHTML=`<div class="quick-preview-hero" style="--quick-cover:${cover?`url('${esc(cover).replace(/'/g,'&#39;')}')`:'linear-gradient(135deg,var(--surface2),var(--surface3))'}"><div><span>${esc(sourceName(m))}</span><h3>${esc(displayTitle(m))}</h3><small>${esc(displayStatus(m))}</small></div></div><div class="quick-preview-stats"><div><strong>${m.chapters.length}</strong><small>Chapters</small></div><div><strong>${unreadCount(m)}</strong><small>Unread</small></div><div><strong>${m.tracking.length}</strong><small>Trackers</small></div></div><div class="coverage-bar"><i style="width:${pct}%"></i></div><p class="muted">${esc((displayDescription(m)||'No description stored.').slice(0,400))}</p><button class="primary-btn" data-open-preview-details="${index}">Open full details</button>`;$('#quick-preview-drawer').classList.remove('hidden');}
+  function closeQuickPreview(){state.previewMangaIndex=null;$('#quick-preview-drawer').classList.add('hidden');}
+
+  function commandDefinitions(){return [
+    ['Dashboard','⌂','Open Command Dashboard',()=>switchView('dashboard'),'D'],['Library','▦','Browse the library',()=>switchView('library'),'G'],['Explore','⌘','Open Backup Explorer',()=>switchView('explore'),'E'],['Analyze','◎','Open Backup Analyzer',()=>switchView('analyze'),'A'],['Tools','⚙','Open Backup Tools',()=>switchView('tools'),'T'],['Health Check','♥','Analyze backup health',()=>{switchView('analyze');switchAnalysisTab('health');},''],['Migration Assistant','↗','Review source migration candidates',()=>{switchView('analyze');switchAnalysisTab('migration');},''],['Quality Score','◇','Review library quality',()=>{switchView('analyze');switchAnalysisTab('quality');},''],['Compare Backups','⇄','Compare another backup',()=>{switchView('analyze');switchAnalysisTab('compare');},''],['Export Premium Report','↧','Download standalone HTML report',exportPremiumReport,''],['Theme / Appearance','◐','Theme, accent and surface',openThemePicker,''],['Focus Mode','□','Library-only distraction free mode',toggleFocusMode,'F'],['Presentation Mode','▶','Full-screen style dashboard',togglePresentationMode,'P'],['Notifications','♢','Open status center',()=>toggleNotifications(true),''],['What’s New','✦','Show v1.5.0 changes',openWhatsNew,''],['About','i','Project and privacy information',openAbout,''],
+  ];}
+  function getCommandResults(q=''){
+    const query=normalizeText(q),res=[];
+    commandDefinitions().forEach((x,i)=>{if(!query||normalizeText(`${x[0]} ${x[2]}`).includes(query))res.push({kind:'command',title:x[0],sub:x[2],icon:x[1],action:x[3],key:x[4]});});
+    if(state.data){state.data.backupManga.forEach((m,i)=>{if(res.length>40)return;const text=normalizeText(`${displayTitle(m)} ${displayAuthor(m)} ${sourceName(m)} ${displayGenres(m).join(' ')}`);if(query&&text.includes(query))res.push({kind:'manga',title:displayTitle(m),sub:`${sourceName(m)} · ${m.chapters.length} chapters`,icon:'M',action:()=>showManga(i),key:''});});
+      [...state.categoryMap.values()].forEach(c=>{if(query&&normalizeText(c.name).includes(query))res.push({kind:'category',title:c.name,sub:'Category',icon:'C',action:()=>{const id=[...state.categoryMap.entries()].find(([,v])=>v===c)?.[0];jumpToLibrary({category:id});},key:''});});
+      [...new Set(state.data.backupManga.map(sourceName))].forEach(n=>{if(query&&normalizeText(n).includes(query))res.push({kind:'source',title:n,sub:'Source',icon:sourceMark(n),action:()=>jumpToLibrary({source:n}),key:''});});}
+    return res.slice(0,50);
+  }
+  function renderCommandPalette(){const q=$('#command-input')?.value||'';state.commandResults=getCommandResults(q);state.commandIndex=clamp(state.commandIndex,0,Math.max(0,state.commandResults.length-1));$('#command-results').innerHTML=state.commandResults.length?state.commandResults.map((r,i)=>`<button class="command-result ${i===state.commandIndex?'active':''}" data-command-index="${i}"><span class="command-result-icon">${esc(r.icon)}</span><span><strong>${esc(r.title)}</strong><small>${esc(r.sub)}</small></span>${r.key?`<kbd>${esc(r.key)}</kbd>`:''}</button>`).join(''):'<div class="empty-state">No result.</div>';}
+  function openCommandPalette(){state.commandIndex=0;$('#command-palette').classList.remove('hidden');$('#command-input').value='';renderCommandPalette();setTimeout(()=>$('#command-input').focus(),0);}
+  function closeCommandPalette(){$('#command-palette').classList.add('hidden');}
+  function runCommandIndex(i){const r=state.commandResults[Number(i)];if(!r)return;closeCommandPalette();r.action();}
+
+  function toggleFocusMode(){if(!state.data)return;const on=!document.body.classList.contains('focus-mode');document.body.classList.toggle('focus-mode',on);$('#focus-exit').classList.toggle('hidden',!on);if(on){switchView('library');toast('Focus Mode on');}else toast('Focus Mode off');}
+  function togglePresentationMode(){if(!state.data)return;const on=!document.body.classList.contains('presentation-mode');document.body.classList.toggle('presentation-mode',on);$('#presentation-exit').classList.toggle('hidden',!on);if(on){switchView('dashboard');toast('Presentation Mode on');}else toast('Presentation Mode off');}
+
+  function renderCompareTimeline(){const d=state.diff,el=$('#compare-timeline');if(!d||!el)return;el.innerHTML=`<div class="timeline-segment"><span>Current backup</span><strong>${d.currentCount.toLocaleString()} manga</strong></div><div class="timeline-segment"><span>Changes detected</span><strong>${(d.added.length+d.removed.length+d.changed.length).toLocaleString()}</strong></div><div class="timeline-segment"><span>Comparison backup</span><strong>${d.compareCount.toLocaleString()} manga</strong></div>`;el.classList.remove('hidden');}
+
+  function renderMigrationAssistant(){const unknown=new Map(),noChapters=[];state.data.backupManga.forEach((m,i)=>{if(!state.sourceMap.has(key64(m.source))){const k=key64(m.source)||'Unknown';const arr=unknown.get(k)||[];arr.push({m,i});unknown.set(k,arr);}if(!m.chapters.length)noChapters.push({m,i});});const rows=[...unknown.entries()].sort((a,b)=>b[1].length-a[1].length);$('#migration-summary').innerHTML=[['Unknown source IDs',rows.length],['Affected manga',rows.reduce((n,x)=>n+x[1].length,0)],['No chapter data',noChapters.length],['Known sources',state.sourceMap.size]].map(([k,v])=>`<div class="stat-card"><strong>${Number(v).toLocaleString()}</strong><span>${esc(k)}</span></div>`).join('');$('#migration-list').innerHTML=rows.length?rows.map(([id,items])=>`<div class="duplicate-group"><h4>Source ID ${esc(id)}</h4><p class="muted">${items.length.toLocaleString()} manga may require source migration.</p><div class="duplicate-items">${items.slice(0,10).map(x=>`<button class="diff-row diff-button" data-manga-index="${x.i}">${esc(displayTitle(x.m))}</button>`).join('')}${items.length>10?`<div class="muted">+ ${items.length-10} more</div>`:''}</div></div>`).join(''):'<div class="empty-state">No unknown source IDs. Source references look consistent.</div>';}
+  function exportMigrationCsv(){const rows=[['Source ID','Stored Source','Title','Manga URL','Chapters']];state.data.backupManga.forEach(m=>{if(!state.sourceMap.has(key64(m.source)))rows.push([key64(m.source),sourceName(m),displayTitle(m),m.url||'',m.chapters.length]);});downloadCsv(rows,datedName('kirin-migration-report','csv'));}
+
+  function renderQualityAnalysis(){const q=computeQualityScore();$('#quality-hero').innerHTML=`<div class="health-summary"><div class="health-hero"><div class="health-big ${q.score>=90?'good':q.score>=75?'warn':'bad'}">${q.score}%</div><div><h3>${q.score>=90?'Excellent library quality':q.score>=75?'Good quality with room to improve':'Metadata quality needs attention'}</h3><p class="muted">A local quality score based on covers, categories, chapters, valid sources, history, tracking and duplicate consistency.</p></div></div></div>`;$('#quality-dimensions').innerHTML=Object.entries(q.dims).map(([k,v])=>`<div class="issue-card" data-severity="${v>=90?'ok':v>=70?'warn':'bad'}"><strong>${v}%</strong><span>${esc(k)}</span></div>`).join('');$('#health-recommendations').innerHTML=`<h3>Recommendations</h3>`+healthRecommendations().map(([n,t,a,tab])=>`<button class="recommendation-row" data-analysis-tab="${tab}"><span class="rec-icon">→</span><span><b>${esc(n)}</b><small>${esc(t)}</small></span><strong>${esc(a)}</strong></button>`).join('');}
+
+  function renderYearReview(){const sel=$('#year-review-select'),content=$('#year-review-content');if(!sel||!content)return;const act=getActivity(),years=[...new Set(act.map(x=>new Date(x.when).getFullYear()).filter(Boolean))].sort((a,b)=>b-a);if(!years.length){sel.innerHTML='<option>No history</option>';content.innerHTML='<div class="empty-state">No reading history available.</div>';return;}const prev=Number(sel.value);sel.innerHTML=years.map(y=>`<option value="${y}">${y}</option>`).join('');sel.value=years.includes(prev)?String(prev):String(years[0]);const year=Number(sel.value),rows=act.filter(x=>new Date(x.when).getFullYear()===year),unique=new Set(rows.map(x=>x.mangaIndex)),duration=rows.reduce((n,x)=>n+x.duration,0),months=Array(12).fill(0);rows.forEach(x=>months[new Date(x.when).getMonth()]++);const max=Math.max(1,...months),top=[...unique].map(i=>state.data.backupManga[i]).sort((a,b)=>readCount(b)-readCount(a)).slice(0,5);content.innerHTML=`<div class="year-review-hero">${[['Reading events',rows.length],['Manga touched',unique.size],['Read duration',duration?formatDuration(duration):'—'],['Peak month',new Date(year,months.indexOf(max),1).toLocaleString(undefined,{month:'long'})]].map(([k,v])=>`<div class="stat-card"><strong>${typeof v==='number'?v.toLocaleString():esc(v)}</strong><span>${esc(k)}</span></div>`).join('')}</div><div class="year-review-months">${months.map((c,i)=>`<div class="year-review-month"><i style="height:${Math.max(3,c/max*100)}%" title="${c} events"></i><span>${new Date(2000,i,1).toLocaleString(undefined,{month:'narrow'})}</span></div>`).join('')}</div><h3 class="section-spacer">Top manga in ${year}</h3><div class="mini-list">${top.map(m=>`<button class="card-hit" data-manga-index="${state.data.backupManga.indexOf(m)}"><div class="mini-row">${coverHtml(m,'mini-thumb')}<div><strong>${esc(displayTitle(m))}</strong><small>${esc(sourceName(m))}</small></div><small>${readCount(m)} read</small></div></button>`).join('')}</div>`;}
+
+  function openGenericModal(html){$('#modal-content').innerHTML=html;$('#modal').classList.remove('hidden');document.body.style.overflow='hidden';state.modalMangaIndex=null;}
+  function openAbout(){openGenericModal(`<div class="eyebrow">ABOUT</div><h2 id="modal-title">Kirin Backup Viewer v${VERSION}</h2><div class="detail-list"><div class="detail-item"><span>Supported apps</span><strong>Komikku + Mihon</strong></div><div class="detail-item"><span>Processing</span><strong>Client-side</strong></div><div class="detail-item"><span>App type</span><strong>Static PWA</strong></div><div class="detail-item"><span>License</span><strong>GPL-2.0</strong></div><div class="detail-item"><span>Offline status</span><strong id="about-offline">${navigator.serviceWorker?.controller?'Service worker active':'Needs initial online load'}</strong></div></div><p class="muted">Backup contents are decoded in this browser tab. No custom backend is required for viewer operation.</p><a class="primary-btn inline-button-link" href="https://github.com/Lanzkila/Komikku-Viewers" target="_blank" rel="noopener">GitHub repository ↗</a>`);}
+  function openWhatsNew(){saveSettings({seenVersion:VERSION});updateVersionBadge();openGenericModal(`<div class="eyebrow">WHAT'S NEW</div><h2 id="modal-title">v${VERSION} Premium Suite</h2><div class="list-stack">${CHANGELOG_SUMMARY.map(x=>`<div class="recommendation-row"><span class="rec-icon">✦</span><span><b>${esc(x)}</b><small>Added in v${VERSION}</small></span></div>`).join('')}</div>`);}
+  function updateVersionBadge(){const b=$('#version-badge');if(b)b.classList.toggle('seen-version',state.settings.seenVersion===VERSION);}
+  function openShortcuts(){openGenericModal(`<div class="eyebrow">KEYBOARD</div><h2 id="modal-title">Shortcuts</h2><div class="detail-list">${[['Command palette','Ctrl + K'],['Universal search','Ctrl + K, then type'],['Library search','/'],['Dashboard / Library','D / G'],['Explore / Analyze / Tools','E / A / T'],['Focus Mode','F'],['Presentation Mode','P'],['Shortcut overlay','?'],['Close overlay','Esc']].map(([k,v])=>`<div class="detail-item"><span>${k}</span><strong>${v}</strong></div>`).join('')}</div>`);}
+
+  function premiumReportHtml(safe=false){const mangas=state.data.backupManga,h=computeHealth(),q=computeQualityScore(),tc=trackerCoverage(),persona=readingPersona(),sources=sourceReliabilityRows().slice(0,10),tops=topListDefinitions();const css=`body{font-family:system-ui;margin:0;background:#f4f6fa;color:#1b2333}.wrap{max-width:1100px;margin:auto;padding:40px}.hero{background:#101726;color:white;border-radius:24px;padding:32px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0}.card{background:white;border:1px solid #dde3ed;border-radius:16px;padding:18px}.card strong{font-size:28px;display:block}table{width:100%;border-collapse:collapse;background:white}td,th{padding:10px;border-bottom:1px solid #e5e8ef;text-align:left}.muted{color:#67748b}@media(max-width:700px){.grid{grid-template-columns:1fr 1fr}.wrap{padding:18px}}`;const totalCh=mangas.reduce((n,m)=>n+m.chapters.length,0),read=mangas.reduce((n,m)=>n+readCount(m),0);return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Kirin ${safe?'Share-safe ':'Premium '}Report</title><style>${css}</style></head><body><div class="wrap"><div class="hero"><small>KIRIN BACKUP VIEWER · v${VERSION}</small><h1>${safe?'Share-safe Backup Report':'Premium Backup Report'}</h1><p>${safe?'Sanitized summary with internal URLs and source IDs omitted.':esc(state.fileName)} · ${new Date().toLocaleString()}</p></div><div class="grid">${[['Manga',mangas.length],['Chapters',totalCh],['Read',read],['Health',h.score+'%'],['Quality',q.score+'%'],['Tracked',tc.pct+'%'],['Sources',sources.length],['Persona',persona.name]].map(([k,v])=>`<div class="card"><strong>${v}</strong><span>${k}</span></div>`).join('')}</div><h2>Top sources</h2><table>${sources.map(r=>`<tr><td>${safe?'Source '+sourceMark(r.name):esc(r.name)}</td><td>${r.total} manga</td><td>${r.score}% reliability</td></tr>`).join('')}</table><h2>Top rankings</h2>${tops.map(([name,,arr,fmt])=>`<div class="card"><h3>${name}</h3><ol>${arr.slice(0,5).map(m=>`<li>${esc(displayTitle(m))} <span class="muted">${esc(fmt(m))}</span></li>`).join('')}</ol></div>`).join('')}<p class="muted">Generated locally by Kirin Backup Viewer. ${safe?'No manga/source URLs or raw source IDs are included.':''}</p></div></body></html>`;}
+  function exportPremiumReport(){if(!state.data){toast('Open a backup first');return;}downloadBlob(new Blob([premiumReportHtml(false)],{type:'text/html'}),datedName('kirin-premium-report','html'));}
+  function exportShareSafeReport(){if(!state.data){toast('Open a backup first');return;}downloadBlob(new Blob([premiumReportHtml(true)],{type:'text/html'}),datedName('kirin-share-safe-report','html'));}
+
+  async function updatePwaStatus(){let core=false,full=false;try{if('caches'in window){const keys=await caches.keys();const hasCache=keys.some(k=>k.includes('kirin-backup'));const coreHit=await caches.match('./assets/js/app.js');const longHit=await caches.match('https://cdn.jsdelivr.net/npm/long@5.2.3/umd/index.min.js');const protoHit=await caches.match('https://cdn.jsdelivr.net/npm/protobufjs@7.5.4/dist/protobuf.min.js');core=!!navigator.serviceWorker?.controller&&hasCache&&!!coreHit;full=core&&!!longHit&&!!protoHit;}}catch{} const text=full?'Full offline ready':core?'Core cached · decoder cache pending':'Initial online load required';['offline-ready-badge','offline-tool-status'].forEach(id=>{const el=$(`#${id}`);if(el){el.textContent=text;el.classList.toggle('offline-ready',full);}});}
+  function handleVisibilitySecurity(){if(!state.settings.blurOnHidden||!state.data){document.body.classList.remove('session-blurred');$('#privacy-blur-shield').classList.add('hidden');return;}const hidden=document.hidden;document.body.classList.toggle('session-blurred',hidden);$('#privacy-blur-shield').classList.toggle('hidden',!hidden);}
+
   function closeBackup() {
-    setMobileMenu(false);
+    setMobileMenu(false); document.body.classList.remove('focus-mode','presentation-mode','session-blurred'); $('#focus-exit')?.classList.add('hidden'); $('#presentation-exit')?.classList.add('hidden'); $('#privacy-blur-shield')?.classList.add('hidden'); closeQuickPreview(); toggleNotifications(false);
     state.data = null; state.loadedFlavor = null; state.fileName = ''; state.filtered = []; state.page = 1; state.compareData=null; state.diff=null; state.compareFileName='';
-    state.cache={health:null,duplicates:null,activity:null,searchIndex:null}; state.quickFilter=''; state.primaryMeta=null; state.repairPlan=null; clearTimeout(state.lockTimer);
+    state.cache={health:null,duplicates:null,activity:null,searchIndex:null}; state.notifications=[]; renderNotifications(); state.quickFilter=''; state.primaryMeta=null; state.repairPlan=null; clearTimeout(state.lockTimer);
     $('#app-view').classList.add('hidden'); $('#loader-view').classList.remove('hidden'); document.body.classList.remove('has-backup');
     closeModal(); closeReport(); closeThemePicker(); unlockViewer(); updateBackupFlavorUi(); const info=BACKUP_APPS[state.settings.backupFlavor]||BACKUP_APPS.komikku; diag(`Ready · choose a ${info.name} .tachibk backup.`); window.scrollTo({top:0,behavior:'smooth'});
   }
 
   function clearViewerSettings() {
-    localStorage.removeItem(SETTINGS_KEY); localStorage.removeItem('kirin-komikku-viewer-settings-v12'); state.settings={...defaultSettings,presets:[]}; applySavedSettings(); if(state.data)applyFilters(true); toast('Viewer settings cleared');
+    localStorage.removeItem(SETTINGS_KEY); localStorage.removeItem('kirin-komikku-viewer-settings-v13'); localStorage.removeItem('kirin-komikku-viewer-settings-v12'); state.settings={...defaultSettings,presets:[]}; applySavedSettings(); if(state.data)applyFilters(true); toast('Viewer settings cleared');
   }
 
   function bind() {
@@ -1112,10 +1380,19 @@
     $('#export-json').addEventListener('click',exportJson); $('#export-tachibk').addEventListener('click',exportTachibk); $('#export-library-csv').addEventListener('click',exportLibraryCsv); $('#export-health-csv').addEventListener('click',exportHealthCsv); $('#export-health-json').addEventListener('click',exportHealthJson); $('#summary-report').addEventListener('click',openSummaryReport); $('#print-report').addEventListener('click',()=>window.print());
     $('#open-theme-picker').addEventListener('click',openThemePicker); $('#theme-toggle').addEventListener('click',openThemePicker); $('#performance-mode-select').addEventListener('change',()=>{saveSettings({performanceMode:$('#performance-mode-select').value});applyPerformanceMode();}); $('#lock-viewer').addEventListener('click',lockViewer); $('#unlock-viewer').addEventListener('click',unlockViewer); $('#auto-lock-select').addEventListener('change',()=>{saveSettings({autoLock:Number($('#auto-lock-select').value)||0});armAutoLock();});
     $('#export-settings').addEventListener('click',exportViewerSettings); $('#import-settings').addEventListener('click',()=>$('#settings-input').click()); $('#settings-input').addEventListener('change',e=>importViewerSettings(e.target.files?.[0])); $('#install-app').addEventListener('click',installApp); $('#clear-settings').addEventListener('click',clearViewerSettings); $('#clear-session').addEventListener('click',closeBackup); $('#stale-days').addEventListener('change',renderStale); $('#apply-safe-repairs').addEventListener('click',applySafeRepairs); $('#export-repair-plan').addEventListener('click',exportRepairPlan);
+    $('#install-home').addEventListener('click',installApp); $('#command-palette-button').addEventListener('click',openCommandPalette); $('#notification-button').addEventListener('click',()=>toggleNotifications($('#notification-drawer').classList.contains('hidden'))); $('#version-badge').addEventListener('click',openWhatsNew);
+    $('#customize-dashboard').addEventListener('click',openDashboardCustomizer); $('#focus-mode-button').addEventListener('click',toggleFocusMode); $('#presentation-mode-button').addEventListener('click',togglePresentationMode); $('#focus-exit').addEventListener('click',toggleFocusMode); $('#presentation-exit').addEventListener('click',togglePresentationMode);
+    $('#accent-color-input').addEventListener('input',e=>setAccent(e.target.value)); $('#theme-accent-input').addEventListener('input',e=>setAccent(e.target.value)); $('#reset-accent').addEventListener('click',()=>setAccent('')); $('#surface-style-select').addEventListener('change',e=>setSurface(e.target.value)); $('#theme-surface-select').addEventListener('change',e=>setSurface(e.target.value)); $('#ambient-select').addEventListener('change',e=>setAmbient(e.target.value)); $('#theme-ambient-select').addEventListener('change',e=>setAmbient(e.target.value));
+    $('#large-text-toggle').addEventListener('change',e=>{saveSettings({largeText:e.target.checked});applyPremiumSettings();}); $('#high-contrast-toggle').addEventListener('change',e=>{saveSettings({highContrast:e.target.checked});applyPremiumSettings();}); $('#reduced-motion-toggle').addEventListener('change',e=>{saveSettings({reducedMotion:e.target.checked});applyPremiumSettings();}); $('#blur-hidden-toggle').addEventListener('change',e=>{saveSettings({blurOnHidden:e.target.checked});handleVisibilitySecurity();});
+    $('#export-premium-report').addEventListener('click',exportPremiumReport); $('#export-share-report').addEventListener('click',exportShareSafeReport); $('#open-about').addEventListener('click',openAbout); $('#open-whats-new').addEventListener('click',openWhatsNew); $('#open-shortcuts').addEventListener('click',openShortcuts); $('#export-migration-csv').addEventListener('click',exportMigrationCsv); $('#year-review-select').addEventListener('change',renderYearReview);
+    $('#command-input').addEventListener('input',()=>{state.commandIndex=0;renderCommandPalette();}); document.addEventListener('visibilitychange',handleVisibilitySecurity);
+    $('#premium-dashboard-grid').addEventListener('dragstart',e=>{const w=e.target.closest('[data-dashboard-widget]');if(!w)return;state.dragWidget=w.dataset.dashboardWidget;w.classList.add('dragging');}); $('#premium-dashboard-grid').addEventListener('dragend',e=>{e.target.closest('[data-dashboard-widget]')?.classList.remove('dragging');$$('#premium-dashboard-grid .drag-over').forEach(x=>x.classList.remove('drag-over'));state.dragWidget=null;}); $('#premium-dashboard-grid').addEventListener('dragover',e=>{const w=e.target.closest('[data-dashboard-widget]');if(!w||!state.dragWidget)return;e.preventDefault();w.classList.add('drag-over');}); $('#premium-dashboard-grid').addEventListener('dragleave',e=>e.target.closest('[data-dashboard-widget]')?.classList.remove('drag-over')); $('#premium-dashboard-grid').addEventListener('drop',e=>{const w=e.target.closest('[data-dashboard-widget]');if(!w||!state.dragWidget)return;e.preventDefault();reorderDashboardWidgets(state.dragWidget,w.dataset.dashboardWidget);$$('#premium-dashboard-grid .drag-over').forEach(x=>x.classList.remove('drag-over'));});
 
     document.addEventListener('input',e=>{if(e.target.matches('#chapter-search'))renderChapterPanel();}); document.addEventListener('change',e=>{if(e.target.matches('#chapter-filter,#chapter-sort'))renderChapterPanel();});
     document.addEventListener('click',e=>{
       armAutoLock(); if(document.body.classList.contains('mobile-menu-open')&&!e.target.closest('#primary-nav')&&!e.target.closest('#mobile-menu-toggle'))setMobileMenu(false);
+      const qp=e.target.closest('[data-quick-preview]');if(qp){e.preventDefault();e.stopPropagation();openQuickPreview(qp.dataset.quickPreview);return;} const openPrev=e.target.closest('[data-open-preview-details]');if(openPrev){closeQuickPreview();showManga(openPrev.dataset.openPreviewDetails);} if(e.target.closest('[data-close-preview]'))closeQuickPreview(); if(e.target.closest('[data-close-notifications]'))toggleNotifications(false); if(e.target.closest('[data-close-command]'))closeCommandPalette();
+      const cmd=e.target.closest('[data-command-index]');if(cmd)runCommandIndex(cmd.dataset.commandIndex); const top=e.target.closest('[data-top-list]');if(top)openTopList(top.dataset.topList); const wt=e.target.closest('[data-widget-toggle]');if(wt)toggleDashboardWidget(wt.dataset.widgetToggle,wt.checked); const note=e.target.closest('[data-notification-index]');if(note){const n=state.notifications[Number(note.dataset.notificationIndex)];toggleNotifications(false);if(n?.tab){switchView('analyze');switchAnalysisTab(n.tab);}}
       const hit=e.target.closest('[data-manga-index]');if(hit)showManga(hit.dataset.mangaIndex); const mt=e.target.closest('[data-modal-tab]');if(mt)switchModalTab(mt.dataset.modalTab);
       const categoryJump=e.target.closest('[data-category-jump]');if(categoryJump)jumpToLibrary({category:categoryJump.dataset.categoryJump}); const sourceJump=e.target.closest('[data-source-jump]');if(sourceJump)jumpToLibrary({source:sourceJump.dataset.sourceJump});
       const searchJump=e.target.closest('[data-search-jump]');if(searchJump){closeModal();jumpSearch(searchJump.dataset.searchJump.replace(/&quot;/g,'"'));} const smart=e.target.closest('[data-smart-jump]');if(smart){state.quickFilter=smart.dataset.smartJump;updateQuickChipUi();switchView('library');applyFilters(true);} const preset=e.target.closest('[data-preset-index]');if(preset)applyPreset(preset.dataset.presetIndex);
@@ -1123,13 +1400,18 @@
       const viewJump=e.target.closest('[data-view-jump]');if(viewJump)switchView(viewJump.dataset.viewJump); const exploreJump=e.target.closest('[data-explore-tab]');if(exploreJump){switchView('explore');switchExploreTab(exploreJump.dataset.exploreTab);} const analysisJump=e.target.closest('[data-analysis-tab]');if(analysisJump){switchView('analyze');switchAnalysisTab(analysisJump.dataset.analysisTab);}
       const theme=e.target.closest('[data-theme-choice]');if(theme)setTheme(theme.dataset.themeChoice); if(e.target.closest('[data-close-theme]'))closeThemePicker(); if(e.target.closest('[data-close-modal]'))closeModal(); if(e.target.closest('[data-close-report]'))closeReport();
     });
+    document.addEventListener('contextmenu',e=>{const hit=e.target.closest('[data-manga-index]');if(hit&&state.data){e.preventDefault();openQuickPreview(hit.dataset.mangaIndex);}});
     ['mousemove','touchstart','keydown'].forEach(ev=>document.addEventListener(ev,armAutoLock,{passive:true}));
-    document.addEventListener('keydown',e=>{if(e.key==='Escape'){setMobileMenu(false);closeModal();closeReport();closeThemePicker();return;}if(e.target.matches('input,textarea,select'))return;const k=e.key.toLowerCase();if(k==='/'){e.preventDefault();switchView('library');$('#search-input').focus();}if(state.data&&k==='d')switchView('dashboard');if(state.data&&k==='g')switchView('library');if(state.data&&k==='e')switchView('explore');if(state.data&&k==='a')switchView('analyze');if(state.data&&k==='t')switchView('tools');});
+    document.addEventListener('keydown',e=>{
+      if(!$('#command-palette').classList.contains('hidden')){if(e.key==='Escape'){closeCommandPalette();return;}if(e.key==='ArrowDown'){e.preventDefault();state.commandIndex=clamp(state.commandIndex+1,0,Math.max(0,state.commandResults.length-1));renderCommandPalette();return;}if(e.key==='ArrowUp'){e.preventDefault();state.commandIndex=clamp(state.commandIndex-1,0,Math.max(0,state.commandResults.length-1));renderCommandPalette();return;}if(e.key==='Enter'){e.preventDefault();runCommandIndex(state.commandIndex);return;}}
+      if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openCommandPalette();return;}
+      if(e.key==='Escape'){setMobileMenu(false);closeModal();closeReport();closeThemePicker();closeQuickPreview();toggleNotifications(false);if(document.body.classList.contains('focus-mode'))toggleFocusMode();if(document.body.classList.contains('presentation-mode'))togglePresentationMode();return;}
+      if(e.target.matches('input,textarea,select'))return;const k=e.key.toLowerCase();if(k==='/'){e.preventDefault();switchView('library');$('#search-input').focus();}if(k==='?'){e.preventDefault();openShortcuts();}if(state.data&&k==='d')switchView('dashboard');if(state.data&&k==='g')switchView('library');if(state.data&&k==='e')switchView('explore');if(state.data&&k==='a')switchView('analyze');if(state.data&&k==='t')switchView('tools');if(state.data&&k==='f')toggleFocusMode();if(state.data&&k==='p')togglePresentationMode();});
     window.addEventListener('resize',()=>{if(!window.matchMedia('(max-width:1050px)').matches)setMobileMenu(false);applyPerformanceMode();});
   }
 
   window.addEventListener('DOMContentLoaded', async () => {
-    bind(); applySavedSettings(); registerPwa(); updateBackupFlavorUi();
+    bind(); applySavedSettings(); registerPwa(); updateBackupFlavorUi(); updatePwaStatus();
     const year = $('#footer-year'); if (year) year.textContent = String(new Date().getFullYear());
     const flavor = state.settings.backupFlavor in BACKUP_APPS ? state.settings.backupFlavor : 'komikku';
     const info = BACKUP_APPS[flavor];
