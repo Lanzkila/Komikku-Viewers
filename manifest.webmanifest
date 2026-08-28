@@ -1,12 +1,12 @@
 {
-  "name": "Kirin Backup Viewer",
+  "name": "Kirin Backup Viewer Premium Suite",
   "short_name": "Kirin Viewer",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0b0d12",
   "theme_color": "#0b0d12",
-  "description": "Client-side Komikku and Mihon .tachibk backup viewer and analyzer.",
+  "description": "Premium client-side Komikku and Mihon backup viewer, analyzer and reporting suite.",
   "icons": [
     {
       "src": "./assets/icons/app-icon.svg",
