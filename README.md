@@ -1,6 +1,6 @@
-# Kirin Komikku Backup Viewer
+# Kirin Backup Viewer
 
-A client-side **Komikku backup viewer and analyzer** for inspecting `.tachibk` backups directly in the browser.
+A client-side **Komikku and Mihon backup viewer and analyzer** for inspecting `.tachibk` backups directly in the browser.
 
 > Viewer only — this project does not include a manga reader and does not download manga pages.
 
@@ -8,28 +8,43 @@ A client-side **Komikku backup viewer and analyzer** for inspecting `.tachibk` b
 
 | Item | Details |
 | --- | --- |
-| Project | Kirin Komikku Backup Viewer |
+| Project | Kirin Backup Viewer |
 | Repository | `Lanzkila/Komikku-Viewers` |
 | Owner | Lanzkila |
-| Current build | v1.3.3 Filter Overlap Fix |
+| Current build | v1.5.0 Premium Suite |
 | Deployment | GitHub Pages |
 | Live site | https://lanzkila.github.io/Komikku-Viewers/ |
 | Default branch | `main` |
 | App type | Static client-side web application / PWA |
 | License | GPL-2.0 |
 
+## Supported backup apps
+
+The Home screen intentionally keeps the selector simple:
+
+- **Komikku** — default
+- **Mihon**
+
+No additional fork selector is included.
+
 ## What it does
 
-Kirin Komikku Backup Viewer opens Komikku backup files locally in your browser and provides a visual library viewer, statistics, backup diagnostics, tracking information, comparison tools, and export utilities.
+Kirin Backup Viewer opens Komikku or Mihon backup files locally in your browser and provides a visual library viewer, statistics, backup diagnostics, tracking information, comparison tools, and export utilities.
 
 The selected backup is decoded inside the browser. The website itself does not need a backend server to inspect the backup.
 
 ### Supported input
 
 - Komikku `.tachibk`
+- Mihon `.tachibk`
 - GZIP protobuf / `.proto.gz`
 - Raw protobuf backup data
 - Decoded `.json`
+
+## Premium Suite
+
+v1.5.0 adds a product-style premium layer while keeping backup processing local: Command Dashboard, animated statistics, mini charts, Command Palette, universal search, Notification Center, customizable widgets, Quick Preview, Showcase/Focus/Presentation modes, appearance customization, Migration Assistant, Library Quality, tracker/source scores, Reading Persona, milestones, Top Lists, Year in Review, premium reports, accessibility and session privacy options.
+
 
 ## Main features
 
@@ -43,7 +58,7 @@ The selected backup is decoded inside the browser. The website itself does not n
 
 ### Library viewer
 
-- Grid, compact grid, and list layouts
+- Comfortable grid, compact grid, Showcase, and list layouts
 - Multiple card sizes and page sizes
 - Search by title, author, artist, genre, source, and other metadata
 - Advanced search syntax
