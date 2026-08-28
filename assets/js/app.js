@@ -92,7 +92,7 @@
     mihon:{name:'Mihon',schema:'schema-mihon.proto',exportBase:'mihon-backup'},
   };
   const DAY = 86400000;
-  const VERSION = '1.5.5';
+  const VERSION = '1.5.7';
   const DASHBOARD_WIDGETS = {health:'Backup health',snapshot:'Library snapshot',recent:'Recently read',vault:'Backup Vault',charts:'Activity trends',quality:'Library Quality',tracking:'Tracker Coverage',sources:'Source Reliability',persona:'Reading Persona',milestones:'Milestones',toplists:'Top Lists'};
   const CHANGELOG_SUMMARY = [
     'Notification drawer no longer covers the desktop header',
@@ -1150,7 +1150,7 @@
   async function installApp(){if(state.installPrompt){state.installPrompt.prompt();await state.installPrompt.userChoice;state.installPrompt=null;return;}toast('Use browser “Add to Home screen” if install is not offered.');}
   function registerPwa(){
     if('serviceWorker'in navigator){
-      navigator.serviceWorker.register('./sw.js?v=155',{updateViaCache:'none'})
+      navigator.serviceWorker.register('./sw.js?v=157',{updateViaCache:'none'})
         .then(reg=>reg.update())
         .catch(e=>log(`Service worker: ${e.message}`));
     }
