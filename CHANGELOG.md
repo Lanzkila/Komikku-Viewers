@@ -2,6 +2,27 @@
 
 All notable changes to **Kirin Backup Viewer** are documented here.
 
+## [1.5.0] - 2026-08-28
+
+### Premium Suite
+- Added Premium Command Dashboard with animated stats, smart status banner, Command Center, mini charts and Backup Vault.
+- Added draggable and pinnable Dashboard widgets with saved layout.
+- Added Library Quality Score, Tracker Coverage, Source Reliability, Reading Persona, Milestones and Top Lists.
+- Added Quick Preview drawer via three-dot button or right-click and upgraded manga details with cover ambience and progress.
+- Added Ctrl+K Command Palette with universal manga/source/category/command search.
+- Added Notification Center and health recommendations.
+- Added Showcase library layout, Focus Mode and Presentation Mode.
+- Added accent-color customization, solid/glass surfaces and optional ambient background.
+- Added progressive backup loading overlay and stage progress.
+- Added Migration Assistant with CSV report and Year in Review.
+- Added comparison timeline and stronger before/after highlighting.
+- Added Premium HTML Report and Share-safe HTML Report.
+- Added What’s New, About, update badge and keyboard-shortcut overlay.
+- Added accessibility profiles: Larger Text, High Contrast and Reduced Motion.
+- Added optional privacy blur when the browser tab becomes hidden.
+- Added PWA install banner and offline-ready status.
+- Updated footer to v1.5.0 Premium Suite.
+
 ## [1.4.0] - 2026-08-27
 
 ### Added
@@ -9,6 +30,12 @@ All notable changes to **Kirin Backup Viewer** are documented here.
 - Added Mihon protobuf schema support via `schemas/schema-mihon.proto`.
 - Added Home Quick Start, Supported Backup, Feature Snapshot, and Project/Changelog cards.
 - Added dynamic footer year using the visitor's browser date.
+
+### Changed
+- Default backup app remains Komikku.
+- Home and PWA naming are now generic `Kirin Backup Viewer` because both Komikku and Mihon are supported.
+- Exported JSON and `.tachibk` filenames follow the selected/loaded backup app.
+- Service-worker cache updated to `kirin-backup-v140`.
 
 ## [1.3.3] - 2026-08-27
 
