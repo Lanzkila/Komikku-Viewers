@@ -2,6 +2,28 @@
 
 All notable changes to **Kirin Backup Viewer** are documented here.
 
+## [1.5.2] - 2026-08-28
+
+### Fixed
+- Notification Center now opens below the top bar instead of covering the desktop navigation.
+- Added a shared drawer backdrop so Notification Center and Quick Preview behave as true overlays without changing the page layout.
+- Opening Notification Center immediately marks its current notifications as read and hides the red notification badge.
+
+### Added
+- Clear individual notifications with the `×` button.
+- Added `Clear all` in Notification Center.
+- Added `Delete manga` to Quick Preview and full Manga Details.
+- Added Tools → Danger Zone with `Delete filtered` and `Delete all manga`.
+- Manga deletion only changes the backup currently loaded in memory; the original file is unchanged until a new backup is exported.
+
+## [1.5.1] - 2026-08-28
+
+### Fixed
+- Removed the empty desktop Dashboard column beside the Milestones widget.
+- Milestones now spans the full Dashboard width before the full-width Top Lists widget.
+- Milestone cards use a 3-column desktop layout, 2-column tablet layout, and 1-column mobile layout.
+- Updated the service-worker cache to `kirin-backup-v151`.
+
 ## [1.5.0] - 2026-08-28
 
 ### Premium Suite
