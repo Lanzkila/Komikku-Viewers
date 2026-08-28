@@ -9,14 +9,14 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="manifest" href="./manifest.webmanifest?v=155">
+  <link rel="manifest" href="./manifest.webmanifest?v=157">
   <link rel="icon" href="./assets/icons/app-icon.svg" type="image/svg+xml">
   <title>Kirin Backup Viewer</title>
-  <link rel="stylesheet" href="./assets/css/app.css?v=155">
+  <link rel="stylesheet" href="./assets/css/app.css?v=157">
   <script defer src="https://cdn.jsdelivr.net/npm/long@5.2.3/umd/index.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/protobufjs@7.5.4/dist/protobuf.min.js"></script>
   <script defer src="./assets/vendor/pako.min.js"></script>
-  <script defer src="./assets/js/app.js?v=155"></script>
+  <script defer src="./assets/js/app.js?v=157"></script>
 </head>
 <body>
   <div class="shell">
@@ -47,7 +47,7 @@
     <main>
       <section id="loader-view" class="loader-grid">
         <article class="hero-card">
-          <div class="eyebrow">KIRIN BACKUP VIEWER · v1.5.5 PREMIUM SUITE</div>
+          <div class="eyebrow">KIRIN BACKUP VIEWER · v1.5.7 PREMIUM SUITE</div>
           <h1>Inspect your manga backup directly in the browser.</h1>
           <p class="lead">Choose the backup app first, then open <code>.tachibk</code>, raw protobuf, <code>.proto.gz</code>, or decoded JSON. Everything is processed locally in this tab.</p>
 
@@ -104,7 +104,7 @@
           <article class="home-info-card">
             <span class="home-card-icon">↗</span>
             <h3>Project</h3>
-            <p><strong>v1.5.5 Premium Suite</strong><br><a href="https://github.com/Lanzkila/Komikku-Viewers" target="_blank" rel="noopener">GitHub repository</a> · <a href="https://github.com/Lanzkila/Komikku-Viewers/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a></p>
+            <p><strong>v1.5.7 Premium Suite</strong><br><a href="https://github.com/Lanzkila/Komikku-Viewers" target="_blank" rel="noopener">GitHub repository</a> · <a href="https://github.com/Lanzkila/Komikku-Viewers/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a></p>
           </article>
         </section>
         <section class="home-status-strip home-wide">
@@ -370,14 +370,14 @@
 
     <footer>
       <span>© <span id="footer-year"></span> Kirin Backup Viewer</span>
-      <span>Komikku + Mihon · Premium Suite · GPL-2.0 · v1.5.5</span>
+      <span>Komikku + Mihon · Premium Suite · GPL-2.0 · v1.5.7</span>
     </footer>
   </div>
 
   <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-backdrop" data-close-modal></div>
     <article class="modal-card">
-      <button class="modal-close" data-close-modal aria-label="Close">×</button>
+      <button class="modal-close modal-x-btn" data-close-modal aria-label="Close"><span class="notification-x-glyph modal-x-glyph" aria-hidden="true">×</span></button>
       <div id="modal-content"></div>
     </article>
   </div>
@@ -385,7 +385,7 @@
   <div id="report-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="report-title">
     <div class="modal-backdrop" data-close-report></div>
     <article class="modal-card report-modal-card">
-      <button class="modal-close" data-close-report aria-label="Close">×</button>
+      <button class="modal-close modal-x-btn" data-close-report aria-label="Close"><span class="notification-x-glyph modal-x-glyph" aria-hidden="true">×</span></button>
       <div class="report-actions"><button id="print-report" class="primary-btn">Print / Save PDF</button></div>
       <div id="report-content" class="report-content"></div>
     </article>
@@ -394,7 +394,7 @@
   <div id="theme-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="theme-title">
     <div class="modal-backdrop" data-close-theme></div>
     <article class="modal-card theme-modal-card">
-      <button class="modal-close" data-close-theme aria-label="Close">×</button>
+      <button class="modal-close modal-x-btn" data-close-theme aria-label="Close"><span class="notification-x-glyph modal-x-glyph" aria-hidden="true">×</span></button>
       <div class="eyebrow">APPEARANCE</div><h2 id="theme-title">Choose theme</h2>
       <div id="theme-grid" class="theme-grid">
         <button class="theme-card" data-theme-choice="night"><span class="theme-preview theme-night"></span><strong>Kirin Night</strong><small>Deep neutral dark</small></button>
@@ -423,7 +423,7 @@
     <div id="notification-list" class="notification-list"></div>
   </aside>
 
-  <aside id="quick-preview-drawer" class="side-drawer quick-preview-drawer hidden" aria-label="Quick manga preview"><div class="drawer-head"><div><div class="eyebrow">QUICK PREVIEW</div><h2>Manga</h2></div><button class="icon-btn" data-close-preview>×</button></div><div id="quick-preview-content"></div></aside>
+  <aside id="quick-preview-drawer" class="side-drawer quick-preview-drawer hidden" aria-label="Quick manga preview"><div class="drawer-head"><div><div class="eyebrow">QUICK PREVIEW</div><h2>Manga</h2></div><button class="icon-btn modal-x-btn quick-preview-close" data-close-preview aria-label="Close quick preview"><span class="notification-x-glyph modal-x-glyph" aria-hidden="true">×</span></button></div><div id="quick-preview-content"></div></aside>
 
   <div id="command-palette" class="command-palette hidden" role="dialog" aria-modal="true" aria-label="Command palette"><div class="command-backdrop" data-close-command></div><div class="command-box"><label class="command-search"><span>⌘</span><input id="command-input" type="search" placeholder="Search manga, sources, categories or commands…" autocomplete="off"></label><div id="command-results" class="command-results"></div><div class="command-foot"><span>↑↓ navigate</span><span>Enter open</span><span>Esc close</span></div></div></div>
 
