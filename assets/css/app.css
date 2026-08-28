@@ -398,3 +398,65 @@ body.focus-mode .scroll-jump-controls,body.presentation-mode .scroll-jump-contro
 .notification-drawer-close .notification-x-glyph{
   font-size:17px;
 }
+
+
+/* v1.5.6 — Notification header close button box alignment */
+.notification-drawer-close{
+  width:34px!important;
+  min-width:34px!important;
+  height:34px!important;
+  min-height:34px!important;
+  flex:0 0 34px!important;
+  box-sizing:border-box;
+  align-self:center;
+  border-radius:11px!important;
+  padding:0!important;
+}
+
+.notification-drawer-close .notification-x-glyph{
+  width:auto;
+  height:auto;
+  line-height:1;
+  transform:translateY(0);
+}
+
+
+/* v1.5.7 — consistent centered X buttons for modal and quick preview close controls */
+.modal-x-btn{
+  display:grid!important;
+  place-items:center!important;
+  padding:0!important;
+  line-height:1!important;
+  box-sizing:border-box;
+}
+
+.modal-close.modal-x-btn{
+  width:40px!important;
+  min-width:40px!important;
+  height:40px!important;
+  min-height:40px!important;
+  border-radius:12px!important;
+}
+
+.quick-preview-close{
+  width:34px!important;
+  min-width:34px!important;
+  height:34px!important;
+  min-height:34px!important;
+  flex:0 0 34px!important;
+  border-radius:11px!important;
+}
+
+.modal-x-glyph{
+  transform:translateY(0)!important;
+  font-family:Arial,Helvetica,sans-serif;
+  font-weight:700;
+}
+
+.modal-close .modal-x-glyph{
+  font-size:18px!important;
+}
+
+.quick-preview-close .modal-x-glyph{
+  font-size:17px!important;
+}
