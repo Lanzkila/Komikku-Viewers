@@ -367,3 +367,34 @@ body.focus-mode .scroll-jump-controls,body.presentation-mode .scroll-jump-contro
   .scroll-jump-controls{right:12px;bottom:74px}
   .scroll-jump-btn{width:40px;height:40px;border-radius:12px}
 }
+
+
+/* v1.5.5 — optical centering for Notification × buttons */
+.notification-dismiss,
+.notification-drawer-close{
+  display:grid!important;
+  place-items:center!important;
+  padding:0!important;
+  line-height:1!important;
+}
+
+.notification-x-glyph{
+  display:block;
+  width:1em;
+  height:1em;
+  line-height:1;
+  text-align:center;
+  font-family:Arial,Helvetica,sans-serif;
+  font-size:16px;
+  font-weight:700;
+  transform:translateY(1px);
+  pointer-events:none;
+}
+
+.notification-dismiss .notification-x-glyph{
+  font-size:16px;
+}
+
+.notification-drawer-close .notification-x-glyph{
+  font-size:17px;
+}
