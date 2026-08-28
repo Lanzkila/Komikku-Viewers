@@ -9,14 +9,14 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="manifest" href="./manifest.webmanifest?v=154">
+  <link rel="manifest" href="./manifest.webmanifest?v=155">
   <link rel="icon" href="./assets/icons/app-icon.svg" type="image/svg+xml">
   <title>Kirin Backup Viewer</title>
-  <link rel="stylesheet" href="./assets/css/app.css?v=154">
+  <link rel="stylesheet" href="./assets/css/app.css?v=155">
   <script defer src="https://cdn.jsdelivr.net/npm/long@5.2.3/umd/index.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/protobufjs@7.5.4/dist/protobuf.min.js"></script>
   <script defer src="./assets/vendor/pako.min.js"></script>
-  <script defer src="./assets/js/app.js?v=154"></script>
+  <script defer src="./assets/js/app.js?v=155"></script>
 </head>
 <body>
   <div class="shell">
@@ -47,7 +47,7 @@
     <main>
       <section id="loader-view" class="loader-grid">
         <article class="hero-card">
-          <div class="eyebrow">KIRIN BACKUP VIEWER · v1.5.4 PREMIUM SUITE</div>
+          <div class="eyebrow">KIRIN BACKUP VIEWER · v1.5.5 PREMIUM SUITE</div>
           <h1>Inspect your manga backup directly in the browser.</h1>
           <p class="lead">Choose the backup app first, then open <code>.tachibk</code>, raw protobuf, <code>.proto.gz</code>, or decoded JSON. Everything is processed locally in this tab.</p>
 
@@ -104,7 +104,7 @@
           <article class="home-info-card">
             <span class="home-card-icon">↗</span>
             <h3>Project</h3>
-            <p><strong>v1.5.4 Premium Suite</strong><br><a href="https://github.com/Lanzkila/Komikku-Viewers" target="_blank" rel="noopener">GitHub repository</a> · <a href="https://github.com/Lanzkila/Komikku-Viewers/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a></p>
+            <p><strong>v1.5.5 Premium Suite</strong><br><a href="https://github.com/Lanzkila/Komikku-Viewers" target="_blank" rel="noopener">GitHub repository</a> · <a href="https://github.com/Lanzkila/Komikku-Viewers/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a></p>
           </article>
         </section>
         <section class="home-status-strip home-wide">
@@ -370,7 +370,7 @@
 
     <footer>
       <span>© <span id="footer-year"></span> Kirin Backup Viewer</span>
-      <span>Komikku + Mihon · Premium Suite · GPL-2.0 · v1.5.4</span>
+      <span>Komikku + Mihon · Premium Suite · GPL-2.0 · v1.5.5</span>
     </footer>
   </div>
 
@@ -418,7 +418,7 @@
   <aside id="notification-drawer" class="side-drawer hidden" aria-label="Notifications">
     <div class="drawer-head">
       <div><div class="eyebrow">STATUS CENTER</div><h2>Notifications</h2></div>
-      <div class="drawer-head-actions"><button id="clear-all-notifications" class="outline-btn compact-btn notification-clear-all" type="button">Clear all</button><button class="icon-btn" data-close-notifications aria-label="Close notifications">×</button></div>
+      <div class="drawer-head-actions"><button id="clear-all-notifications" class="outline-btn compact-btn notification-clear-all" type="button">Clear all</button><button class="icon-btn notification-drawer-close" data-close-notifications aria-label="Close notifications"><span class="notification-x-glyph" aria-hidden="true">×</span></button></div>
     </div>
     <div id="notification-list" class="notification-list"></div>
   </aside>
