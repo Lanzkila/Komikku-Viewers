@@ -1,7 +1,7 @@
-const CACHE = 'kirin-backup-v140';
+const CACHE = 'kirin-backup-v150';
 const SHELL = [
   './', './index.html', './assets/css/app.css', './assets/js/app.js', './assets/vendor/pako.min.js',
-  './schemas/schema-komikku.proto', './schemas/schema-mihon.proto', './manifest.webmanifest', './assets/icons/app-icon.svg',
+  './schemas/schema-komikku.proto', './schemas/schema-mihon.proto', './manifest.webmanifest', './CHANGELOG.md', './README.md', './assets/icons/app-icon.svg',
   'https://cdn.jsdelivr.net/npm/long@5.2.3/umd/index.min.js',
   'https://cdn.jsdelivr.net/npm/protobufjs@7.5.4/dist/protobuf.min.js',
 ];
