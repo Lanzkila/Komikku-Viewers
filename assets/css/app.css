@@ -243,3 +243,127 @@ body.presentation-mode .topbar,body.presentation-mode .toolbar,body.presentation
   .drawer-head-actions .outline-btn{display:inline-flex!important}
   .quick-preview-actions{display:grid;grid-template-columns:1fr}
 }
+
+
+/* v1.5.3 — harden Notification Center visibility and interaction */
+.drawer-head-actions{
+  display:flex!important;
+  align-items:center;
+  gap:8px;
+  flex:0 0 auto;
+}
+.notification-clear-all{
+  display:inline-flex!important;
+  align-items:center;
+  justify-content:center;
+  white-space:nowrap;
+}
+.notification-item{
+  grid-template-columns:minmax(0,1fr) 40px!important;
+}
+.notification-main{
+  display:block;
+  width:100%;
+  cursor:pointer;
+}
+.notification-dismiss{
+  display:grid!important;
+  place-items:center;
+  opacity:1!important;
+  visibility:visible!important;
+  position:relative;
+  z-index:2;
+  font-size:17px;
+  font-weight:900;
+}
+.notification-dismiss:hover{
+  background:color-mix(in srgb,var(--danger) 12%,var(--surface));
+}
+.notification-count.hidden{
+  display:none!important;
+}
+.compact-empty strong{color:var(--text)}
+.compact-empty span{color:var(--muted)}
+
+@media(max-width:680px){
+  .drawer-head{align-items:flex-start}
+  .drawer-head-actions{gap:6px}
+  .notification-clear-all{padding:8px 10px!important}
+}
+
+
+/* v1.5.4 — health text layout, feed inspector, page jump controls */
+.issue-card{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:4px;
+  min-width:0;
+}
+.issue-card strong{line-height:1.05}
+.issue-card>span{
+  display:block;
+  width:100%;
+  font-weight:800;
+  line-height:1.28;
+  overflow-wrap:anywhere;
+}
+.issue-card small{
+  display:block;
+  width:100%;
+  margin-top:1px;
+  line-height:1.35;
+  overflow-wrap:anywhere;
+}
+.issue-card[data-severity="info"]{border-color:color-mix(in srgb,var(--accent) 35%,var(--line))}
+.issue-card[data-severity="info"] small{color:var(--muted)}
+
+.feed-format-note{border-color:color-mix(in srgb,var(--accent) 28%,var(--line))}
+.feed-row{
+  display:grid;
+  grid-template-columns:42px minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+  padding:12px 14px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:var(--surface);
+}
+.feed-row-main{min-width:0}
+.feed-row-main strong,.feed-row-main small{display:block}
+.feed-row-main small{color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
+.feed-row-main code{display:inline-block;margin-top:7px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.feed-row-side{display:grid;justify-items:end;gap:5px;color:var(--muted);font-size:10px;font-weight:900;letter-spacing:.06em}
+.feed-bad{color:var(--danger);letter-spacing:0}
+
+.scroll-jump-controls{
+  position:fixed;
+  right:18px;
+  bottom:78px;
+  z-index:95;
+  display:grid;
+  gap:7px;
+}
+.scroll-jump-btn{
+  width:42px;
+  height:42px;
+  display:grid;
+  place-items:center;
+  border:1px solid var(--line);
+  border-radius:13px;
+  background:var(--surface);
+  color:var(--text);
+  box-shadow:0 8px 28px rgba(0,0,0,.2);
+  font-size:18px;
+  font-weight:900;
+}
+.scroll-jump-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent);transform:translateY(-1px)}
+.scroll-jump-btn:disabled{opacity:.28;cursor:default;box-shadow:none}
+body.focus-mode .scroll-jump-controls,body.presentation-mode .scroll-jump-controls{display:none}
+
+@media(max-width:680px){
+  .feed-row{grid-template-columns:36px minmax(0,1fr);gap:9px}
+  .feed-row-side{grid-column:2;justify-items:start;display:flex;flex-wrap:wrap;gap:8px}
+  .scroll-jump-controls{right:12px;bottom:74px}
+  .scroll-jump-btn{width:40px;height:40px;border-radius:12px}
+}
