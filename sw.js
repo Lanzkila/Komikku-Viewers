@@ -1,49 +1,11 @@
-const CACHE = 'kirin-backup-v157';
-const SHELL = [
-  './', './index.html', './assets/css/app.css?v=157', './assets/js/app.js?v=157', './assets/vendor/pako.min.js',
-  './schemas/schema-komikku.proto', './schemas/schema-mihon.proto', './manifest.webmanifest?v=157', './CHANGELOG.md', './README.md', './assets/icons/app-icon.svg',
-  'https://cdn.jsdelivr.net/npm/long@5.2.3/umd/index.min.js',
-  'https://cdn.jsdelivr.net/npm/protobufjs@7.5.4/dist/protobuf.min.js',
-];
-self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(async cache => {
-    for (const url of SHELL) {
-      try { await cache.add(url); } catch (_) {}
-    }
-  }).then(() => self.skipWaiting()));
-});
-self.addEventListener('activate', event => {
-  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
-});
-self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET') return;
-  const url = new URL(event.request.url);
-  const sameOrigin = url.origin === self.location.origin;
-
-  if (sameOrigin) {
-    event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          const copy = response.clone();
-          caches.open(CACHE).then(cache => cache.put(event.request, copy)).catch(() => {});
-          return response;
-        })
-        .catch(() =>
-          caches.match(event.request).then(hit =>
-            hit || (event.request.mode === 'navigate' ? caches.match('./index.html') : Response.error())
-          )
-        )
-    );
-    return;
-  }
-
-  event.respondWith(
-    caches.match(event.request).then(hit =>
-      hit || fetch(event.request).then(response => {
-        const copy = response.clone();
-        caches.open(CACHE).then(cache => cache.put(event.request, copy)).catch(() => {});
-        return response;
-      })
-    )
-  );
-});
+const CACHE='kirin-backup-v160';
+const BASE_JS='./assets/js/app.js?v=157';
+const BASE_CSS='./assets/css/app.css?v=157';
+const SUITE_JS='./assets/js/suite-v160.js';
+const SUITE_CSS='./assets/css/suite-v160.css';
+const SHELL=['./','./index.html',BASE_JS,BASE_CSS,SUITE_JS,SUITE_CSS,'./assets/vendor/pako.min.js','./schemas/schema-komikku.proto','./schemas/schema-mihon.proto','./manifest.webmanifest?v=157','./CHANGELOG.md','./README.md','./assets/icons/app-icon.svg','https://cdn.jsdelivr.net/npm/long@5.2.3/umd/index.min.js','https://cdn.jsdelivr.net/npm/protobufjs@7.5.4/dist/protobuf.min.js'];
+self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(async cache=>{for(const u of SHELL){try{await cache.add(u)}catch(_){}}}).then(()=>self.skipWaiting())));
+self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+async function baseResponse(request,fallback){try{return await fetch(request)}catch(_){return (await caches.match(request))||(await caches.match(fallback))}}
+async function appendAsset(request,suiteUrl,type){const base=await baseResponse(request,type==='js'?BASE_JS:BASE_CSS);if(!base)return Response.error();const suite=(await caches.match(suiteUrl))||await fetch(suiteUrl);const [a,b]=await Promise.all([base.text(),suite.text()]);return new Response(`${a}\n\n/* Kirin injected suite */\n${b}`,{status:200,headers:{'Content-Type':type==='js'?'application/javascript; charset=utf-8':'text/css; charset=utf-8','Cache-Control':'no-store'}})}
+self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;const u=new URL(event.request.url),same=u.origin===self.location.origin;if(same&&u.pathname.endsWith('/assets/js/app.js')){event.respondWith(appendAsset(event.request,SUITE_JS,'js'));return}if(same&&u.pathname.endsWith('/assets/css/app.css')){event.respondWith(appendAsset(event.request,SUITE_CSS,'css'));return}if(same){event.respondWith(fetch(event.request).then(r=>{const c=r.clone();caches.open(CACHE).then(k=>k.put(event.request,c)).catch(()=>{});return r}).catch(()=>caches.match(event.request).then(h=>h||(event.request.mode==='navigate'?caches.match('./index.html'):Response.error()))));return}event.respondWith(caches.match(event.request).then(h=>h||fetch(event.request).then(r=>{const c=r.clone();caches.open(CACHE).then(k=>k.put(event.request,c)).catch(()=>{});return r})))})

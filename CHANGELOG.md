@@ -1,239 +1,25 @@
 # Changelog
 
-All notable changes to **Kirin Backup Viewer** are documented here.
-
-## [1.5.7] - 2026-08-28
-
-### Fixed
-- Fixed the `×` button alignment for the Manga Details modal.
-- Fixed the same `×` alignment issue for the report modal, theme modal, and Quick Preview drawer.
-- Modal-style close buttons now use a dedicated centered glyph wrapper instead of relying on the browser font baseline.
-- Updated app/service-worker cache to `v157`.
-
-## [1.5.6] - 2026-08-28
-
-### Fixed
-- Fixed the Notification Center header `×` button beside `Clear all`.
-- The close button now uses a fixed square `34×34` box so it matches the header controls instead of collapsing to the glyph height.
-- Centered the header `×` without the previous vertical optical offset.
-- Updated app/service-worker cache to `v156`.
-
-## [1.5.5] - 2026-08-28
-
-### Fixed
-- Corrected the optical alignment of the `×` button inside each Notification card.
-- Corrected the Notification Center header close `×` alignment.
-- Notification `×` glyphs now use their own centered wrapper instead of relying on the browser font baseline.
-- Updated app/service-worker cache to `v155`.
-
-## [1.5.4] - 2026-08-28
-
-### Fixed
-- Fixed Health Check card labels/status text overlapping on narrow cards.
-- Corrected Komikku/Mihon category reference handling: `BackupManga.categories` is resolved against `BackupCategory.order`, not the database category ID.
-- This removes false `Broken category refs` warnings and prevents Repair Preview from treating valid category-order references as broken.
-- `No chapters` is now treated as data completeness information rather than a structural backup error, because chapter lists can legitimately be absent.
+## [1.6.0] - 2026-09-05
 
 ### Added
-- Added Explore → **Feeds** with a Komikku Feed Inspector.
-- Added Analyze → **Feed Health** for duplicate feed definitions, saved-search source mismatches, blank saved-search names, and informational feed-only source references.
-- Added an explicit note that Komikku `BackupFeed` has no library-category reference.
-- Added floating **Back to top** and **Go to bottom** buttons for desktop and mobile.
+- Reading & Backup Intelligence suite opened from the new diamond button (`Ctrl+Shift+K`).
+- Reading Center, chapter analytics, 52-week heatmap, smart collections and manga timeline.
+- Bulk selection, local pins, local collections, selected JSON/CSV export and in-memory delete.
+- Category Manager, Tracker Center 2.0, Sources/Feeds/Settings inspector and migration report.
+- Snapshot Vault, Compare 2.0, Duplicate Resolution Assistant, Repair Center 2.0, integrity grade, Undo/reset and session log.
+- Quick Preview and keyboard library navigation.
+- Thumbnail Recovery Center with broken/missing cover scan, local URL/image overrides, override import/export and automatic Library card repair.
+- WestManga-aware cover diagnostics; missing source-side URLs are not fabricated.
 
 ### Changed
-- Health score now focuses on structural consistency instead of heavily penalizing optional chapter data.
-- Service-worker/app asset cache updated to `v154`.
+- Suite typography enlarged for easier reading on desktop and phone.
+- PWA cache updated to `kirin-backup-v160`.
+- v1.5.7 core viewer remains the stable base and is not rewritten by this release.
 
-## [1.5.3] - 2026-08-28
-
-### Fixed
-- Fixed Notification Center assets remaining stale after an update by adding versioned cache-busting to the app CSS, JavaScript, manifest, and service worker registration.
-- Opening Notification Center now marks the current notification IDs as seen immediately.
-- The red notification badge no longer reappears when the same Health/Quality notifications are rebuilt.
-- Clicking a notification now reliably opens its Analyze destination.
-- Forced `Clear all` and each notification `×` delete button to remain visible on desktop and mobile.
-
-### Changed
-- A red badge appears again only when a genuinely new notification ID is created during the current backup session.
-- Service-worker cache updated to `kirin-backup-v153`.
-
-## [1.5.2] - 2026-08-28
-
-### Fixed
-- Notification Center now opens below the top bar instead of covering the desktop navigation.
-- Added a shared drawer backdrop so Notification Center and Quick Preview behave as true overlays without changing the page layout.
-- Opening Notification Center immediately marks its current notifications as read and hides the red notification badge.
-
-### Added
-- Clear individual notifications with the `×` button.
-- Added `Clear all` in Notification Center.
-- Added `Delete manga` to Quick Preview and full Manga Details.
-- Added Tools → Danger Zone with `Delete filtered` and `Delete all manga`.
-- Manga deletion only changes the backup currently loaded in memory; the original file is unchanged until a new backup is exported.
-
-## [1.5.1] - 2026-08-28
-
-### Fixed
-- Removed the empty desktop Dashboard column beside the Milestones widget.
-- Milestones now spans the full Dashboard width before the full-width Top Lists widget.
-- Milestone cards use a 3-column desktop layout, 2-column tablet layout, and 1-column mobile layout.
-- Updated the service-worker cache to `kirin-backup-v151`.
-
-## [1.5.0] - 2026-08-28
-
-### Premium Suite
-- Added Premium Command Dashboard with animated stats, smart status banner, Command Center, mini charts and Backup Vault.
-- Added draggable and pinnable Dashboard widgets with saved layout.
-- Added Library Quality Score, Tracker Coverage, Source Reliability, Reading Persona, Milestones and Top Lists.
-- Added Quick Preview drawer via three-dot button or right-click and upgraded manga details with cover ambience and progress.
-- Added Ctrl+K Command Palette with universal manga/source/category/command search.
-- Added Notification Center and health recommendations.
-- Added Showcase library layout, Focus Mode and Presentation Mode.
-- Added accent-color customization, solid/glass surfaces and optional ambient background.
-- Added progressive backup loading overlay and stage progress.
-- Added Migration Assistant with CSV report and Year in Review.
-- Added comparison timeline and stronger before/after highlighting.
-- Added Premium HTML Report and Share-safe HTML Report.
-- Added What’s New, About, update badge and keyboard-shortcut overlay.
-- Added accessibility profiles: Larger Text, High Contrast and Reduced Motion.
-- Added optional privacy blur when the browser tab becomes hidden.
-- Added PWA install banner and offline-ready status.
-- Updated footer to v1.5.0 Premium Suite.
-
-## [1.4.0] - 2026-08-27
-
-### Added
-- Added a simple two-option backup selector on Home: **Komikku** and **Mihon** only.
-- Added Mihon protobuf schema support via `schemas/schema-mihon.proto`.
-- Added Home Quick Start, Supported Backup, Feature Snapshot, and Project/Changelog cards.
-- Added dynamic footer year using the visitor's browser date.
-
-### Changed
-- Default backup app remains Komikku.
-- Home and PWA naming are now generic `Kirin Backup Viewer` because both Komikku and Mihon are supported.
-- Exported JSON and `.tachibk` filenames follow the selected/loaded backup app.
-- Service-worker cache updated to `kirin-backup-v140`.
-
-## [1.3.3] - 2026-08-27
-
-### Fixed
-- Fixed the actual source of the thin blue strips above the Library filter controls.
-- The strips were the `View`, `Card`, and `Per page` controls scrolling underneath the sticky filter layer and peeking through its top edge.
-- Removed sticky positioning from the Library filter row on desktop, tablet, and mobile so the two control rows can no longer overlap.
-- Removed the unnecessary compositing transform from the Library filter row.
-
-### Changed
-- The main application header remains sticky.
-- Library filters now scroll normally with the Library page.
-- Service-worker cache updated to `kirin-komikku-v133`.
-
-## [1.3.2] - 2026-08-27
-
-### Fixed
-- Fixed the remaining thin blue/card strip visible between the sticky header and library filters.
-- Corrected the desktop/tablet sticky filter offset from `94px` to the actual `82px` header height.
-- Added an opaque edge to the sticky filter layer so library cards cannot bleed through at the boundary.
-
-### Changed
-- Service-worker cache updated to `kirin-komikku-v132` so the corrected CSS is fetched after deployment.
-
-## [1.3.1] - 2026-08-27
-
-### Fixed
-- Fixed blue/empty strip artifacts appearing above the library filters on desktop and some mobile Chrome/WebView builds.
-- Removed `content-visibility` from paginated manga cards in Performance Mode because it could cause GPU paint artifacts around sticky UI.
-- Made the sticky header and library filter layers opaque and isolated to prevent content bleeding through them.
-- Improved service-worker update behavior so newly deployed CSS/JS/app-shell files are fetched before falling back to the offline cache.
-
-### Changed
-- Performance Mode still removes unnecessary transitions, but library cards now render normally because the library is already paginated.
-- Service-worker cache updated to `kirin-komikku-v131`.
-
-## [1.3.0] - 2026-08-27
-
-### Added
-- Seven themes: Kirin Night, Cloud Light, AMOLED, Ocean, Sakura, Forest, and Sepia.
-- Tracker name mapping for MyAnimeList, AniList, Kitsu, Shikimori, Bangumi, Komga, MangaUpdates, Kavita, Suwayomi, and MangaDex List.
-- Detailed tracking cards with progress, score, status, dates, and tracker URLs when available.
-- Chapter search, read/bookmark filters, sorting, upload dates, and last-read metadata.
-- Genre, author, artist, smart-collection, top-manga, library-growth, and reading-heatmap explorers.
-- Stale manga, source-health, orphan-data, and safe-repair analysis.
-- Per-manga comparison details when comparing two backups.
-- Saved search/filter presets.
-- Library CSV and health CSV/JSON exports.
-- Backup metadata panel.
-- Performance Mode for large libraries.
-- Privacy Lock with optional inactivity timeout.
-- Viewer-settings export/import.
-- Desktop keyboard shortcuts.
-- PWA manifest, install support, and offline app-shell caching.
-
-### Kept
-- Dashboard, Library, Explore, Analyze, and Tools views.
-- Komikku `.tachibk`, GZIP/raw protobuf, and JSON decoding.
-- JSON and `.tachibk` export.
-- Health check, duplicate detector, insights, and two-backup comparison.
-- Mobile hamburger navigation.
-- Viewer-only scope; no manga reader.
-
-## [1.2.2] - 2026-08-27
-
-### Added
-- Restored richer chapter metadata inspired by the original backup viewer.
-- Upload-date indicator for chapters.
-- Last-read metadata when history exists.
-- Improved scanlator, last-page, read/unread, and bookmark presentation.
-
-## [1.2.1] - 2026-08-27
-
-### Changed
-- Replaced mobile bottom navigation with a hamburger menu.
-- Desktop navigation remains horizontal.
-- Mobile menu closes after navigation, outside click, or Escape.
-
-### Fixed
-- Removed mobile navigation overlap/blue-edge artifacts caused by the previous fixed bottom navigation layout.
-
-## [1.2.0] - 2026-08-27
-
-### Added
-- Advanced dashboard and backup analyzer.
-- Backup Health Check.
-- Duplicate Detector.
-- Advanced library search syntax and quick filters.
-- Category, source, tracker, and reading-activity explorers.
-- Library Insights.
-- Compare two backups with added/removed/changed detection.
-- Diff JSON export.
-- Manga Info tabs: Overview, Chapters, Tracking, and Raw.
-- Grid, Compact, and List library modes.
-- Card-size and page-size preferences.
-- Summary report and browser Print/Save as PDF.
-- Saved viewer preferences.
-
-## [1.1.1] - 2026-08-27
-
-### Changed
-- Removed the experimental local Manga Reader completely.
-- Returned the project to a viewer-only scope.
-
-### Kept
-- Mobile navigation fixes and theme-button positioning improvements.
-
-## [1.1.0] - 2026-08-27
-
-### Added
-- Mobile UI fixes for navigation and theme control.
-- Experimental local reader support.
-
-> The reader was removed again in v1.1.1.
-
-## [1.0.0] - 2026-08-27
-
-### Added
-- Initial GitHub Pages build focused on Komikku backups.
-- Komikku protobuf schema loading.
-- GZIP and raw protobuf backup decoding.
-- Library viewer, search, filters, Manga Info, chapters, statistics, and backup tools.
-- JSON and `.tachibk` export.
-- Client-side processing with no custom backend required.
+### Previous
+- v1.5.7: modal close-X alignment fix.
+- v1.5.x: Premium Suite, notifications, delete controls, feed/category fixes.
+- v1.4.0: Komikku + Mihon selector.
+- v1.3.x: themes, trackers, analyzers, PWA, responsive UI.
+- v1.0–1.2: initial viewer, library/analyzer foundation and viewer-only scope.
