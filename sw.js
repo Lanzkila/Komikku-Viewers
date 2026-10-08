@@ -1,9 +1,9 @@
-const CACHE='kirin-backup-v160';
+const CACHE='kirin-backup-v161';
 const BASE_JS='./assets/js/app.js?v=157';
-const BASE_CSS='./assets/css/app.css?v=157';
+const BASE_CSS='./assets/css/app.css?v=158';
 const SUITE_JS='./assets/js/suite-v160.js';
 const SUITE_CSS='./assets/css/suite-v160.css';
-const SHELL=['./','./index.html',BASE_JS,BASE_CSS,SUITE_JS,SUITE_CSS,'./assets/vendor/pako.min.js','./schemas/schema-komikku.proto','./schemas/schema-mihon.proto','./manifest.webmanifest?v=157','./CHANGELOG.md','./README.md','./assets/icons/app-icon.svg','https://cdn.jsdelivr.net/npm/long@5.2.3/umd/index.min.js','https://cdn.jsdelivr.net/npm/protobufjs@7.5.4/dist/protobuf.min.js'];
+const SHELL=['./','./index.html',BASE_JS,BASE_CSS,'./assets/js/header-menu.js?v=158',SUITE_JS,SUITE_CSS,'./assets/vendor/pako.min.js','./schemas/schema-komikku.proto','./schemas/schema-mihon.proto','./manifest.webmanifest?v=157','./CHANGELOG.md','./README.md','./assets/icons/app-icon.svg','https://cdn.jsdelivr.net/npm/long@5.2.3/umd/index.min.js','https://cdn.jsdelivr.net/npm/protobufjs@7.5.4/dist/protobuf.min.js'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(async cache=>{for(const u of SHELL){try{await cache.add(u)}catch(_){}}}).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 async function baseResponse(request,fallback){try{return await fetch(request)}catch(_){return (await caches.match(request))||(await caches.match(fallback))}}
