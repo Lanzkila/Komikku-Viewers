@@ -715,15 +715,16 @@ body.focus-mode .scroll-jump-controls,body.presentation-mode .scroll-jump-contro
   position:sticky!important;
   top:0;
   z-index:45;
-  height:0!important;
-  min-height:0!important;
+  height:40px!important;
+  min-height:40px!important;
   width:100%;
-  margin:0!important;
-  padding:0!important;
+  margin:0 0 -40px!important;
+  padding:3px 3px 0 0!important;
   border:0!important;
   background:transparent!important;
   pointer-events:none;
   display:flex;
+  align-items:flex-start;
   justify-content:flex-end;
 }
 #modal .manga-info-modal .manga-modal-kicker{display:none}
@@ -737,7 +738,7 @@ body.focus-mode .scroll-jump-controls,body.presentation-mode .scroll-jump-contro
   min-width:34px!important;
   height:34px!important;
   min-height:34px!important;
-  margin:-4px -4px 0 auto!important;
+  margin:0 0 0 auto!important;
   pointer-events:auto;
   z-index:48;
   background:color-mix(in srgb,var(--surface) 94%,transparent);
@@ -878,7 +879,7 @@ body.focus-mode .scroll-jump-controls,body.presentation-mode .scroll-jump-contro
   }
   #modal .manga-info-modal .manga-comic-stat{padding:6px 0 8px}
   #modal .manga-info-modal .manga-modal-toolbar .modal-close.modal-x-btn{
-    margin:-1px -1px 0 auto!important;
+    margin:0 0 0 auto!important;
   }
 }
 @media(max-width:450px){

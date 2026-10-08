@@ -1153,7 +1153,7 @@
   async function installApp(){if(state.installPrompt){state.installPrompt.prompt();await state.installPrompt.userChoice;state.installPrompt=null;return;}toast('Use browser “Add to Home screen” if install is not offered.');}
   function registerPwa(){
     if('serviceWorker'in navigator){
-      navigator.serviceWorker.register('./sw.js?v=167',{updateViaCache:'none'})
+      navigator.serviceWorker.register('./sw.js?v=168',{updateViaCache:'none'})
         .then(reg=>reg.update())
         .catch(e=>log(`Service worker: ${e.message}`));
     }
