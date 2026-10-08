@@ -4,7 +4,9 @@
 
 <!-- AUTO-CHANGELOG:START -->
 ### 2026-10-08 (MYT)
+- **09:27** · **Fixed** — fix(viewer): display history-only exclusion count and refresh SW registration ([`7ad4ace`](https://github.com/Lanzkila/Komikku-Viewers/commit/7ad4ace9c160941ea2d9e3ffef8f42a059b88e3c)) <!-- commit:7ad4ace9c160941ea2d9e3ffef8f42a059b88e3c -->
 - **09:22** · **Fixed** — fix(viewer): automatically exclude non-library Komikku backup entries ([`4f7582e`](https://github.com/Lanzkila/Komikku-Viewers/commit/4f7582e4da44e26e1ed9a590fd7c0b36ed98c2ba)) <!-- commit:4f7582e4da44e26e1ed9a590fd7c0b36ed98c2ba -->
+- **09:22** · **Docs** — docs(changelog): auto-update commit history \[skip ci\] ([`03892c1`](https://github.com/Lanzkila/Komikku-Viewers/commit/03892c1c6d84f1e6884960744fe30e33ebfa528c)) <!-- commit:03892c1c6d84f1e6884960744fe30e33ebfa528c -->
 - **09:05** · **Docs** — docs(changelog): auto-update commit history \[skip ci\] ([`0d68917`](https://github.com/Lanzkila/Komikku-Viewers/commit/0d689170d45a7b285f68706cfb3daf57b1bdaef7)) <!-- commit:0d689170d45a7b285f68706cfb3daf57b1bdaef7 -->
 - **09:04** · **Maintenance** — chore(changelog): add idempotent MYT commit history generator ([`ccfa8d3`](https://github.com/Lanzkila/Komikku-Viewers/commit/ccfa8d3060f1bc6a538b3d7912dfc58970e59a79)) <!-- commit:ccfa8d3060f1bc6a538b3d7912dfc58970e59a79 -->
 - **09:04** · **Docs** — docs: refresh Komikku Viewer README with v1.6 guide, credits and changelog ([`5b7098f`](https://github.com/Lanzkila/Komikku-Viewers/commit/5b7098f2055287c2844ad70b196e250738d8b567)) <!-- commit:5b7098f2055287c2844ad70b196e250738d8b567 -->
