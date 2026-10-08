@@ -4,7 +4,9 @@
 
 <!-- AUTO-CHANGELOG:START -->
 ### 2026-10-08 (MYT)
+- **09:49** · **Fixed** — fix(ui): keep manga detail close button fully inside modal bounds ([`333ba25`](https://github.com/Lanzkila/Komikku-Viewers/commit/333ba25cf3f8549b407e2d8184d083b65166413b)) <!-- commit:333ba25cf3f8549b407e2d8184d083b65166413b -->
 - **09:46** · **Added** — feat(ui): rework manga detail hero into compact comic-specific 3-column layout ([`d92d6b3`](https://github.com/Lanzkila/Komikku-Viewers/commit/d92d6b3bcae91a6145edfcfe180bfccfd14eb4ec)) <!-- commit:d92d6b3bcae91a6145edfcfe180bfccfd14eb4ec -->
+- **09:46** · **Docs** — docs(changelog): auto-update commit history \[skip ci\] ([`8064b66`](https://github.com/Lanzkila/Komikku-Viewers/commit/8064b66cab171e8965ae5589e41b27e8cfcada1a)) <!-- commit:8064b66cab171e8965ae5589e41b27e8cfcada1a -->
 - **09:39** · **Style** — style(modal): polish manga details and fix close button placement ([`f3c9c65`](https://github.com/Lanzkila/Komikku-Viewers/commit/f3c9c6508201b9e4577d58b85fe8050bafe032fb)) <!-- commit:f3c9c6508201b9e4577d58b85fe8050bafe032fb -->
 - **09:39** · **Docs** — docs(changelog): auto-update commit history \[skip ci\] ([`aa04822`](https://github.com/Lanzkila/Komikku-Viewers/commit/aa0482295ceacf7f7d85569a083fd00946577234)) <!-- commit:aa0482295ceacf7f7d85569a083fd00946577234 -->
 - **09:39** · **Docs** — docs(changelog): auto-update commit history \[skip ci\] ([`55e3fc2`](https://github.com/Lanzkila/Komikku-Viewers/commit/55e3fc228a7fd259ce8ff7a76c2fbe006ed5fc49)) <!-- commit:55e3fc228a7fd259ce8ff7a76c2fbe006ed5fc49 -->
