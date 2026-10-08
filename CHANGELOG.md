@@ -5,6 +5,8 @@
 <!-- AUTO-CHANGELOG:START -->
 ### 2026-10-08 (MYT)
 - **09:39** · **Style** — style(modal): polish manga details and fix close button placement ([`f3c9c65`](https://github.com/Lanzkila/Komikku-Viewers/commit/f3c9c6508201b9e4577d58b85fe8050bafe032fb)) <!-- commit:f3c9c6508201b9e4577d58b85fe8050bafe032fb -->
+- **09:39** · **Docs** — docs(changelog): auto-update commit history \[skip ci\] ([`aa04822`](https://github.com/Lanzkila/Komikku-Viewers/commit/aa0482295ceacf7f7d85569a083fd00946577234)) <!-- commit:aa0482295ceacf7f7d85569a083fd00946577234 -->
+- **09:39** · **Style** — style(modal): connect responsive manga details classes ([`3ce0e6b`](https://github.com/Lanzkila/Komikku-Viewers/commit/3ce0e6b198f03d98abef0a74b155e43f8e159334)) <!-- commit:3ce0e6b198f03d98abef0a74b155e43f8e159334 -->
 - **09:28** · **Fixed** — fix(pages): force new core library-filter script on load ([`ff91e31`](https://github.com/Lanzkila/Komikku-Viewers/commit/ff91e31cf031d2fb84f69a209805ddfe0c95672a)) <!-- commit:ff91e31cf031d2fb84f69a209805ddfe0c95672a -->
 - **09:28** · **Fixed** — fix(pwa): use fresh versioned library cleanup assets and cache ([`d264af0`](https://github.com/Lanzkila/Komikku-Viewers/commit/d264af0d4d0a5727cb09d8bfce19599a89674968)) <!-- commit:d264af0d4d0a5727cb09d8bfce19599a89674968 -->
 - **09:28** · **Docs** — docs(changelog): auto-update commit history \[skip ci\] ([`bfe7733`](https://github.com/Lanzkila/Komikku-Viewers/commit/bfe7733781a93ee9c0778f8b9343284031ce2428)) <!-- commit:bfe7733781a93ee9c0778f8b9343284031ce2428 -->
