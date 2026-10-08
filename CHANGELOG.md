@@ -5,6 +5,8 @@
 <!-- AUTO-CHANGELOG:START -->
 ### 2026-10-08 (MYT)
 - **09:28** · **Fixed** — fix(pages): force new core library-filter script on load ([`ff91e31`](https://github.com/Lanzkila/Komikku-Viewers/commit/ff91e31cf031d2fb84f69a209805ddfe0c95672a)) <!-- commit:ff91e31cf031d2fb84f69a209805ddfe0c95672a -->
+- **09:28** · **Fixed** — fix(pwa): use fresh versioned library cleanup assets and cache ([`d264af0`](https://github.com/Lanzkila/Komikku-Viewers/commit/d264af0d4d0a5727cb09d8bfce19599a89674968)) <!-- commit:d264af0d4d0a5727cb09d8bfce19599a89674968 -->
+- **09:28** · **Docs** — docs(changelog): auto-update commit history \[skip ci\] ([`a8605eb`](https://github.com/Lanzkila/Komikku-Viewers/commit/a8605ebcb4946e7f3df0ec31ac651f9983a79f2a)) <!-- commit:a8605ebcb4946e7f3df0ec31ac651f9983a79f2a -->
 - **09:27** · **Fixed** — fix(viewer): display history-only exclusion count and refresh SW registration ([`7ad4ace`](https://github.com/Lanzkila/Komikku-Viewers/commit/7ad4ace9c160941ea2d9e3ffef8f42a059b88e3c)) <!-- commit:7ad4ace9c160941ea2d9e3ffef8f42a059b88e3c -->
 - **09:27** · **Docs** — docs(changelog): auto-update commit history \[skip ci\] ([`6e5d86c`](https://github.com/Lanzkila/Komikku-Viewers/commit/6e5d86c8aee632dddcdc7b0c853d99b4b599f28c)) <!-- commit:6e5d86c8aee632dddcdc7b0c853d99b4b599f28c -->
 - **09:22** · **Fixed** — fix(viewer): automatically exclude non-library Komikku backup entries ([`4f7582e`](https://github.com/Lanzkila/Komikku-Viewers/commit/4f7582e4da44e26e1ed9a590fd7c0b36ed98c2ba)) <!-- commit:4f7582e4da44e26e1ed9a590fd7c0b36ed98c2ba -->
