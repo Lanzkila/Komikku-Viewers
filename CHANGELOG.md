@@ -4,6 +4,8 @@
 
 <!-- AUTO-CHANGELOG:START -->
 ### 2026-10-08 (MYT)
+- **10:07** · **Fixed** — fix(library): fill 9-column rows and disable scroll arrows at page edges ([`339e4b8`](https://github.com/Lanzkila/Komikku-Viewers/commit/339e4b83ddb87c36dd1965a4ed8b890584708524)) <!-- commit:339e4b83ddb87c36dd1965a4ed8b890584708524 -->
+- **09:49** · **Docs** — docs(changelog): auto-update commit history \[skip ci\] ([`7f8eab4`](https://github.com/Lanzkila/Komikku-Viewers/commit/7f8eab4c9da697d7211af9fdb63e94646e87b884)) <!-- commit:7f8eab4c9da697d7211af9fdb63e94646e87b884 -->
 - **09:49** · **Fixed** — fix(ui): keep manga detail close button fully inside modal bounds ([`333ba25`](https://github.com/Lanzkila/Komikku-Viewers/commit/333ba25cf3f8549b407e2d8184d083b65166413b)) <!-- commit:333ba25cf3f8549b407e2d8184d083b65166413b -->
 - **09:46** · **Added** — feat(ui): rework manga detail hero into compact comic-specific 3-column layout ([`d92d6b3`](https://github.com/Lanzkila/Komikku-Viewers/commit/d92d6b3bcae91a6145edfcfe180bfccfd14eb4ec)) <!-- commit:d92d6b3bcae91a6145edfcfe180bfccfd14eb4ec -->
 - **09:46** · **Docs** — docs(changelog): auto-update commit history \[skip ci\] ([`8064b66`](https://github.com/Lanzkila/Komikku-Viewers/commit/8064b66cab171e8965ae5589e41b27e8cfcada1a)) <!-- commit:8064b66cab171e8965ae5589e41b27e8cfcada1a -->
