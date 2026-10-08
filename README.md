@@ -120,6 +120,10 @@ Workflow juga boleh dijalankan manual melalui **Actions → Auto Changelog → R
 
 > Badge **Release Downloads** hanya mengira fail yang dimuat turun melalui *GitHub Releases*, bukan lawatan GitHub Pages atau jumlah pemasangan PWA. Jika repo belum mempunyai release, kiraan mungkin kosong/0.
 
+## 🧹 Auto Library Cleanup
+
+Apabila backup terbaru dimuatkan, viewer akan **menyembunyikan rekod dengan `favorite=false`** (bukan Library aktif) secara automatik. Data sejarah yang disimpan oleh Komikku/Mihon tidak lagi dipaparkan sebagai manga dalam Dashboard, Library, Analyze, Compare dan Intelligence Suite. **Fail backup asal tidak diubah.** Eksport baharu daripada viewer mungkin mengecualikan rekod tersebut, jadi simpan backup asal untuk memelihara sejarah. Perubahan dalam aplikasi hanya boleh dikesan selepas membuka backup baharu; GitHub Pages tidak bersambung langsung kepada data aplikasi.
+
 ## 🇬🇧 English overview
 
 Kirin Backup Viewer is a **client-side Komikku & Mihon backup metadata viewer and analyzer**. Open supported `.tachibk`, protobuf/GZIP or decoded JSON backups; inspect manga, chapters, trackers and history; compare backups, run diagnostics, recover cover overrides and export reports. It is **not** a manga reader or chapter downloader.

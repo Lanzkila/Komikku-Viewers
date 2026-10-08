@@ -1,7 +1,7 @@
-const CACHE='kirin-backup-v162';
-const BASE_JS='./assets/js/app.js?v=157';
+const CACHE='kirin-backup-v163';
+const BASE_JS='./assets/js/app.js?v=163';
 const BASE_CSS='./assets/css/app.css?v=159';
-const SUITE_JS='./assets/js/suite-v160.js';
+const SUITE_JS='./assets/js/suite-v160.js?v=163';
 const SUITE_CSS='./assets/css/suite-v160.css';
 const SHELL=['./','./index.html',BASE_JS,BASE_CSS,'./assets/js/header-menu.js?v=159',SUITE_JS,SUITE_CSS,'./assets/vendor/pako.min.js','./schemas/schema-komikku.proto','./schemas/schema-mihon.proto','./manifest.webmanifest?v=157','./CHANGELOG.md','./README.md','./assets/icons/app-icon.svg','https://cdn.jsdelivr.net/npm/long@5.2.3/umd/index.min.js','https://cdn.jsdelivr.net/npm/protobufjs@7.5.4/dist/protobuf.min.js'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(async cache=>{for(const u of SHELL){try{await cache.add(u)}catch(_){}}}).then(()=>self.skipWaiting())));

@@ -291,7 +291,10 @@
 
   function normalizeData(data) {
     if (!data || typeof data !== 'object') throw new Error('Decoded backup did not contain an object.');
-    data.backupManga = asArray(data.backupManga);
+    const allEntries = asArray(data.backupManga);
+    // Kotlin defaults favorite to true; only explicit false is outside the Library.
+    data.backupManga = allEntries.filter(m => m.favorite !== false);
+    Object.defineProperty(data, '_autoCleanHidden', {value:allEntries.length-data.backupManga.length, configurable:true});
     data.backupCategories = asArray(data.backupCategories);
     data.backupSources = asArray(data.backupSources);
     data.backupSavedSearches = asArray(data.backupSavedSearches);
@@ -337,7 +340,7 @@
       document.body.classList.add('has-backup');
       $('#backup-name').textContent = file.name;
       const loadedApp = BACKUP_APPS[state.loadedFlavor];
-      $('#backup-summary').textContent = `${loadedApp.name} · ${data.backupManga.length.toLocaleString()} manga · ${data.backupCategories.length} categories · ${data.backupSources.length} sources`;
+      $('#backup-summary').textContent = `${loadedApp.name} · ${data.backupManga.length.toLocaleString()} manga · ${data.backupCategories.length} categories · ${data.backupSources.length} sources${data._autoCleanHidden ? ` · ${data._autoCleanHidden.toLocaleString()} bukan Library disembunyikan` : ''}`;
       diag(`${loadedApp.name} backup loaded ✓ · ${data.backupManga.length.toLocaleString()} manga.`);
       populateFilters();
       applySavedSettings();
