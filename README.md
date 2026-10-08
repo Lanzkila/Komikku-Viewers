@@ -1,250 +1,142 @@
+<div align="center">
+
+<img src="assets/icons/app-icon.svg" alt="Kirin Backup Viewer icon" width="96" height="96">
+
 # Kirin Backup Viewer
 
-A client-side **Komikku and Mihon backup viewer and analyzer** for inspecting `.tachibk` backups directly in the browser.
+**Komikku · Mihon · Backup Viewer & Analyzer**
 
-> Viewer only — this project does not include a manga reader and does not download manga pages.
+Baca dan analisis backup manga **terus dalam browser** — tanpa menghantar fail backup ke server khas.
 
-## Repository information
+*Inspect your Komikku and Mihon manga backups privately in your browser.*
 
-| Item | Details |
+[**🌐 Buka Viewer / Open Viewer**](https://lanzkila.github.io/Komikku-Viewers/) · [**📋 Changelog**](CHANGELOG.md) · [**📄 License**](LICENSE)
+
+[![Stars](https://img.shields.io/github/stars/Lanzkila/Komikku-Viewers?style=flat-square&logo=github&label=Stars)](https://github.com/Lanzkila/Komikku-Viewers/stargazers)
+[![Forks](https://img.shields.io/github/forks/Lanzkila/Komikku-Viewers?style=flat-square&logo=github&label=Forks)](https://github.com/Lanzkila/Komikku-Viewers/forks)
+[![Release downloads](https://img.shields.io/github/downloads/Lanzkila/Komikku-Viewers/total?style=flat-square&label=Release%20Downloads)](https://github.com/Lanzkila/Komikku-Viewers/releases)
+[![License](https://img.shields.io/github/license/Lanzkila/Komikku-Viewers?style=flat-square)](LICENSE)
+[![Last commit](https://img.shields.io/github/last-commit/Lanzkila/Komikku-Viewers?style=flat-square)](https://github.com/Lanzkila/Komikku-Viewers/commits/main/)
+[![Auto Changelog](https://github.com/Lanzkila/Komikku-Viewers/actions/workflows/auto-changelog.yml/badge.svg?branch=main)](https://github.com/Lanzkila/Komikku-Viewers/actions/workflows/auto-changelog.yml)
+
+</div>
+
+---
+
+## 🇲🇾 Pengenalan
+
+**Kirin Backup Viewer** ialah aplikasi web / PWA untuk membuka dan memeriksa metadata backup **Komikku** atau **Mihon**. Pilih fail backup, lihat perpustakaan manga, semak kemajuan bacaan, analisis kesihatan data, bandingkan dua backup dan eksport laporan.
+
+> **Viewer dan alat analisis sahaja:** bukan manga reader, tidak menyediakan sumber manga, tidak membaca bab secara online dan tidak memuat turun halaman manga.
+
+| Maklumat | Butiran |
 | --- | --- |
-| Project | Kirin Backup Viewer |
-| Repository | `Lanzkila/Komikku-Viewers` |
-| Owner | Lanzkila |
-| Current build | v1.5.0 Premium Suite |
-| Deployment | GitHub Pages |
-| Live site | https://lanzkila.github.io/Komikku-Viewers/ |
-| Default branch | `main` |
-| App type | Static client-side web application / PWA |
-| License | GPL-2.0 |
+| **Versi suite terkini** | **v1.6.0 — Reading & Backup Intelligence** |
+| **Enjin asas** | v1.5.7 (dikekalkan; suite tambahan) |
+| **Input** | `.tachibk`, raw protobuf, `.proto.gz` / GZIP protobuf, JSON yang serasi |
+| **Aplikasi backup** | Komikku (default) dan Mihon sahaja |
+| **Platform** | Browser desktop/telefon, GitHub Pages, PWA |
+| **Kod sumber** | [Lanzkila/Komikku-Viewers](https://github.com/Lanzkila/Komikku-Viewers) |
+| **Lesen** | [GPL-2.0](LICENSE) |
 
-## Supported backup apps
+## ✨ Ciri utama / Main features
 
-The Home screen intentionally keeps the selector simple:
+| Bahagian | Fungsi |
+| --- | --- |
+| **Dashboard** | Statistik manga/bab, belum dibaca, bookmark, tracker, health score dan recently read |
+| **Library** | Grid, compact, showcase & list; carian, sort, quick filter, pagination, saved presets & smart collections |
+| **Manga details** | Maklumat manga, kategori, genre, source, author/artist, bab, status read/unread/bookmark dan raw metadata |
+| **Explore** | Categories, sources, trackers, genres, authors, artists, reading activity, heatmap & library growth |
+| **Analyze** | Duplicate, missing cover/bab, source health, stale manga, orphan/invalid references, safe repair preview |
+| **Compare** | Bandingkan dua backup: manga ditambah/dibuang/diubah, perubahan bab, kategori, status dan bookmark |
+| **Tracking** | Baca data tracker tersimpan termasuk MyAnimeList, AniList, Kitsu, Shikimori, Bangumi dan servis lain jika tersedia |
+| **Export** | Decoded JSON, `.tachibk` re-encoding, CSV dan laporan yang boleh dicetak / Save as PDF |
+| **Premium Suite** | Command Dashboard, Quick Preview, Command Palette, notifications, Migration Assistant & Library Quality |
+| **Reading Intelligence** | Reading Center, chapter analytics, heatmap 52 minggu, timeline, pins, collections dan bulk selection |
+| **Backup Intelligence** | Snapshot Vault, Compare 2.0, duplicate resolution, Repair Center 2.0, integrity grade, Undo/reset dan session log |
+| **Cover Recovery** | Kesan imej rosak/hilang, URL/image overrides tempatan, import/eksport override dan pembaikan kad Library |
+| **Personalization** | Tujuh tema, PWA, UI responsif, focus/presentation mode dan pilihan aksesibiliti |
 
-- **Komikku** — default
-- **Mihon**
+<details>
+<summary><b>Tracker yang dikenali / Recognized trackers</b></summary>
 
-No additional fork selector is included.
+MyAnimeList, AniList, Kitsu, Shikimori, Bangumi, Komga, MangaUpdates, Kavita, Suwayomi dan MangaDex List (bergantung kepada data dalam backup).
 
-## What it does
+</details>
 
-Kirin Backup Viewer opens Komikku or Mihon backup files locally in your browser and provides a visual library viewer, statistics, backup diagnostics, tracking information, comparison tools, and export utilities.
+## 🚀 Cara menggunakan / Quick start
 
-The selected backup is decoded inside the browser. The website itself does not need a backend server to inspect the backup.
+1. Buka **[Kirin Backup Viewer](https://lanzkila.github.io/Komikku-Viewers/)**.
+2. Pilih **Komikku** atau **Mihon** pada halaman utama.
+3. Tekan **Choose file** untuk membuka backup yang serasi; pemprosesan berlaku di browser.
+4. Gunakan **Dashboard**, **Library**, **Explore**, **Analyze** dan **Tools** untuk melihat data.
+5. Buka menu **☰** pada desktop untuk pintasan Intelligence Suite (◆), Command Palette, Notifications, Appearance, versi dan New backup. Pada HP, gunakan menu navigasi sedia ada.
+6. Eksport JSON, CSV, `.tachibk` atau laporan apabila diperlukan. **Simpan salinan backup asal** sebelum mengeksport backup yang diubah.
 
-### Supported input
+**Pintasan / Shortcuts:** `Ctrl + K` (Command Palette), `Ctrl + Shift + K` (Reading & Backup Intelligence).
 
-- Komikku `.tachibk`
-- Mihon `.tachibk`
-- GZIP protobuf / `.proto.gz`
-- Raw protobuf backup data
-- Decoded `.json`
+## 🔒 Privasi & keselamatan
 
-## Premium Suite
+- Fail yang dipilih diproses **di browser**, bukannya dimuat naik ke backend projek.
+- Dua backup untuk perbandingan juga diproses secara setempat.
+- Tetapan, pins, collections, snapshot dan override boleh disimpan dalam storan browser; jangan anggap peranti yang dikongsi sebagai storan rahsia.
+- Beberapa library JavaScript dimuat daripada CDN. Akses internet mungkin diperlukan pada lawatan pertama.
+- Semak fail eksport yang dijana sebelum digunakan pada aplikasi asal; **jangan bergantung pada viewer sebagai satu-satunya backup**.
+- PWA boleh menggunakan aset cache selepas lawatan pertama yang berjaya. Jika UI masih versi lama, reload selepas kemas kini service worker.
 
-v1.5.0 adds a product-style premium layer while keeping backup processing local: Command Dashboard, animated statistics, mini charts, Command Palette, universal search, Notification Center, customizable widgets, Quick Preview, Showcase/Focus/Presentation modes, appearance customization, Migration Assistant, Library Quality, tracker/source scores, Reading Persona, milestones, Top Lists, Year in Review, premium reports, accessibility and session privacy options.
-
-
-## Main features
-
-### Dashboard
-
-- Manga, chapter, unread, bookmark, and tracking totals
-- Backup health score
-- Library snapshot
-- Recently read entries
-- Backup metadata
-
-### Library viewer
-
-- Comfortable grid, compact grid, Showcase, and list layouts
-- Multiple card sizes and page sizes
-- Search by title, author, artist, genre, source, and other metadata
-- Advanced search syntax
-- Quick filters and saved filter presets
-- Category, status, reading-progress, and sorting filters
-- Smart collections
-- Performance mode for large libraries
-
-### Manga information
-
-- Overview and metadata
-- Description, genres, categories, source, author, and artist
-- Chapter list
-- Chapter search and filters
-- Chapter sorting
-- Upload date and last-read metadata
-- Read / unread / bookmark state
-- Raw backup entry inspector
-
-### Tracking
-
-Tracker IDs are mapped to the tracker services used by Komikku where known, including:
-
-- MyAnimeList
-- AniList
-- Kitsu
-- Shikimori
-- Bangumi
-- Komga
-- MangaUpdates
-- Kavita
-- Suwayomi
-- MangaDex List
-
-Tracking views can display stored progress, score, status, dates, and tracker URLs when those values exist in the backup.
-
-### Explore
-
-- Categories
-- Sources
-- Trackers
-- Genres
-- Authors
-- Artists
-- Reading activity
-- Reading heatmap
-- Library growth
-- Top manga
-- Smart collections
-
-### Analyzer
-
-- Backup health check
-- Duplicate detector
-- Missing cover / missing chapter checks
-- Unknown source detection
-- Broken category-reference detection
-- Stale manga analysis
-- Source health
-- Orphan-data checks
-- Safe repair preview for supported consistency issues
-- Library insights
-
-### Compare backups
-
-Load a second backup locally and compare it against the current backup.
-
-The comparison can show:
-
-- Added manga
-- Removed manga
-- Changed manga
-- New chapters
-- Category changes
-- Reading-state changes
-- Bookmark changes
-- Per-manga differences
-
-Comparison data can also be exported as JSON.
-
-### Export and tools
-
-- Export decoded JSON
-- Re-encode and export `.tachibk`
-- Export library CSV
-- Export health report CSV / JSON
-- Generate printable backup summary
-- Print / Save as PDF through the browser
-- Export / import viewer settings
-- Clear viewer settings and current session
-
-## Themes
-
-v1.3.x includes seven themes:
-
-1. Kirin Night
-2. Cloud Light
-3. AMOLED
-4. Ocean
-5. Sakura
-6. Forest
-7. Sepia
-
-Theme and viewer preferences are stored locally in the browser.
-
-## Mobile and desktop
-
-The interface is responsive for desktop, laptop, tablet, and phone layouts.
-
-On mobile, primary navigation uses a hamburger menu to avoid overlapping or cramped navigation controls.
-
-## Privacy
-
-Backup processing is designed to stay client-side.
-
-- Selected backup files are decoded in the current browser session.
-- The viewer does not require uploading the backup to a custom backend.
-- Comparison backups are also processed locally.
-- Viewer settings can be stored in browser storage, but exported viewer settings do not contain the loaded backup.
-- Privacy Lock can hide the viewer after inactivity when enabled.
-
-Always review your own browser extensions, hosting environment, and network setup if you require a stricter threat model.
-
-## PWA and offline support
-
-The project includes a web app manifest and service worker so supported browsers can install the viewer as a PWA.
-
-After the required app resources have been cached successfully, the viewer can reuse cached assets. Some third-party resources may still require an initial online load before they become available offline.
-
-## Project structure
+## 📁 Struktur projek / Repository structure
 
 ```text
 Komikku-Viewers/
-├─ index.html
-├─ README.md
-├─ LICENSE
-├─ manifest.webmanifest
-├─ sw.js
-├─ .nojekyll
-├─ .github/
-│  └─ workflows/
-│     └─ pages.yml
-├─ assets/
-│  ├─ css/
-│  │  └─ app.css
-│  ├─ js/
-│  │  └─ app.js
-│  ├─ icons/
-│  │  └─ app-icon.svg
-│  └─ vendor/
-│     └─ pako.min.js
-└─ schemas/
-   └─ schema-komikku.proto
+├── index.html                         # UI utama
+├── assets/
+│   ├── css/                           # Styles & suite UI
+│   ├── js/                            # Viewer, suite & menu
+│   ├── icons/                         # PWA icon
+│   └── vendor/                        # Local dependencies
+├── schemas/                           # Komikku & Mihon protobuf
+├── manifest.webmanifest               # PWA manifest
+├── sw.js                              # Service worker & cache
+├── scripts/update_changelog.py        # Commit history generator
+├── .github/workflows/
+│   └── auto-changelog.yml             # Auto Changelog action
+├── CHANGELOG.md                       # Manual release notes + auto history
+├── README.md
+└── LICENSE
 ```
 
-## GitHub Pages deployment
+## 📝 Auto Changelog
 
-The repository is intended to be hosted directly with GitHub Pages.
+Setiap push ke branch `main` akan mencetuskan [**Auto Changelog**](.github/workflows/auto-changelog.yml). Workflow menyemak commit baharu serta sejarah **30 hari terkini**, kemudian menulisnya dalam [`CHANGELOG.md`](CHANGELOG.md) dengan:
 
-The included GitHub Actions workflow deploys the repository root when changes are pushed to `main`.
+- **Tarikh dan jam Malaysia (MYT, UTC+8)**
+- **Kategori commit** (Added, Fixed, Docs, Refactor dan lain-lain)
+- **Pautan terus** ke commit GitHub
+- **Pengesanan SHA** agar entri yang sama tidak digandakan
 
-Live build:
+Nota release asal dikekalkan di bawah sejarah automatik. Rekod lama tidak dipadam; 30 hari ialah *tempoh semakan balik* untuk mengisi commit yang terlepas. Bot menggunakan commit `[skip ci]` supaya tidak mencetuskan workflow berulang.
 
-**https://lanzkila.github.io/Komikku-Viewers/**
+Workflow juga boleh dijalankan manual melalui **Actions → Auto Changelog → Run workflow** (pilih tempoh sejarah untuk diisi).
 
-## Development notes
+> Badge **Release Downloads** hanya mengira fail yang dimuat turun melalui *GitHub Releases*, bukan lawatan GitHub Pages atau jumlah pemasangan PWA. Jika repo belum mempunyai release, kiraan mungkin kosong/0.
 
-This project is a static application built with HTML, CSS, and JavaScript. Backup decoding uses protobuf and GZIP support in the browser.
+## 🇬🇧 English overview
 
-There is no required application backend for normal viewer operation.
+Kirin Backup Viewer is a **client-side Komikku & Mihon backup metadata viewer and analyzer**. Open supported `.tachibk`, protobuf/GZIP or decoded JSON backups; inspect manga, chapters, trackers and history; compare backups, run diagnostics, recover cover overrides and export reports. It is **not** a manga reader or chapter downloader.
 
-For very large backups, Performance Mode reduces unnecessary UI work and keeps rendering paginated instead of attempting to display the complete library at once.
+The current feature suite is **v1.6.0**, layered over the **v1.5.7** base. Your selected backup remains in your browser rather than being uploaded to an application backend. Always retain your original backup. The [automatic changelog](CHANGELOG.md) records commits in Malaysia time, separately from manually written version notes.
 
-## Changelog
+## 🙏 Credits & attribution
 
-See [`CHANGELOG.md`](./CHANGELOG.md) for version history and notable fixes.
+This project is based on and inspired by the open-source **[Mihon Backup Viewer](https://github.com/Animeboynz/Mihon-Backup-Viewer)** project by **Animeboynz**, with its UI and features adapted for a Komikku/Mihon-focused viewer.
 
-## Credits
+- [Komikku](https://github.com/komikku-app/komikku)
+- [Mihon Backup Viewer — original inspiration](https://github.com/Animeboynz/Mihon-Backup-Viewer)
 
-Kirin Komikku Backup Viewer is based on and inspired by the open-source **Mihon Backup Viewer** project by Animeboynz, with the interface and feature set reworked for this Komikku-focused viewer.
+Komikku, Mihon, tracking providers and related names belong to their respective owners. **This is an unofficial community project.**
 
-- Mihon Backup Viewer: https://github.com/Animeboynz/Mihon-Backup-Viewer
-- Komikku: https://github.com/komikku-app/komikku
+## 📜 License
 
-Komikku, Mihon, MyAnimeList, AniList, and other named services belong to their respective projects/owners. This repository is not an official Komikku or Mihon project.
+Released under **[GNU General Public License v2.0 (GPL-2.0)](LICENSE)**. Retain applicable notices and license requirements for derived code.
 
-## License
-
-This repository retains the **GNU General Public License v2.0 (GPL-2.0)** licensing requirements of the derived implementation. See [`LICENSE`](./LICENSE) for the full license text.
+<div align="center"><sub>Kirin Backup Viewer · <a href="https://github.com/Lanzkila/Komikku-Viewers">Lanzkila/Komikku-Viewers</a></sub></div>
