@@ -12,11 +12,12 @@
   <link rel="manifest" href="./manifest.webmanifest?v=157">
   <link rel="icon" href="./assets/icons/app-icon.svg" type="image/svg+xml">
   <title>Kirin Backup Viewer</title>
-  <link rel="stylesheet" href="./assets/css/app.css?v=157">
+  <link rel="stylesheet" href="./assets/css/app.css?v=158">
   <script defer src="https://cdn.jsdelivr.net/npm/long@5.2.3/umd/index.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/protobufjs@7.5.4/dist/protobuf.min.js"></script>
   <script defer src="./assets/vendor/pako.min.js"></script>
   <script defer src="./assets/js/app.js?v=157"></script>
+  <script defer src="./assets/js/header-menu.js?v=158"></script>
 </head>
 <body>
   <div class="shell">
@@ -32,6 +33,21 @@
         <button class="nav-btn" data-view="explore"><span class="nav-icon">⌘</span><span>Explore</span></button>
         <button class="nav-btn" data-view="analyze"><span class="nav-icon">◎</span><span>Analyze</span></button>
         <button class="nav-btn" data-view="tools"><span class="nav-icon">⚙</span><span>Tools</span></button>
+        <div class="desktop-header-menu">
+          <button id="desktop-header-menu-toggle" class="icon-btn desktop-header-menu-toggle" type="button" aria-label="Open quick menu" title="Open menu" aria-expanded="false" aria-controls="desktop-header-menu-panel">☰</button>
+          <div id="desktop-header-menu-panel" class="desktop-header-menu-panel hidden" aria-label="Quick menu">
+            <div class="desktop-header-menu-label">Navigation</div>
+            <button type="button" data-desktop-view="dashboard">⌂ <span>Dashboard</span></button>
+            <button type="button" data-desktop-view="library">▦ <span>Library</span></button>
+            <button type="button" data-desktop-view="explore">⌘ <span>Explore</span></button>
+            <button type="button" data-desktop-view="analyze">◎ <span>Analyze</span></button>
+            <button type="button" data-desktop-view="tools">⚙ <span>Tools</span></button>
+            <div class="desktop-header-menu-label desktop-header-menu-divider">Quick actions</div>
+            <button type="button" data-desktop-action="appearance">◐ <span>Appearance</span></button>
+            <button type="button" data-desktop-action="commands">⌘ <span>Command palette</span></button>
+            <button type="button" data-desktop-action="backup">⇧ <span>New backup</span></button>
+          </div>
+        </div>
       </nav>
 
       <div class="top-actions">
