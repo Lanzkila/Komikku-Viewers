@@ -460,3 +460,43 @@ body.focus-mode .scroll-jump-controls,body.presentation-mode .scroll-jump-contro
 .quick-preview-close .modal-x-glyph{
   font-size:17px!important;
 }
+
+
+/* Desktop hamburger after Tools; the existing <=1050px mobile menu is unchanged. */
+.desktop-header-menu{display:none;position:relative;flex:0 0 auto}
+@media (min-width:1051px){
+  .desktop-header-menu{display:block}
+  .desktop-header-menu-toggle{
+    width:42px;height:42px;padding:0;display:grid;place-items:center;
+    font-size:19px;line-height:1;border-radius:12px;
+  }
+  .desktop-header-menu-toggle[aria-expanded="true"]{
+    border-color:var(--accent);color:var(--accent);background:var(--surface2);
+  }
+  .desktop-header-menu-panel{
+    position:absolute;top:calc(100% + 13px);right:0;z-index:110;
+    width:228px;max-height:calc(100dvh - 100px);overflow-y:auto;
+    padding:8px;background:var(--surface);
+    border:1px solid var(--line);border-radius:15px;box-shadow:var(--shadow);
+  }
+  .desktop-header-menu-panel button{
+    display:flex;align-items:center;gap:12px;width:100%;min-height:39px;
+    padding:9px 11px;border:0;border-radius:10px;text-align:left;
+    color:var(--text);background:transparent;font:inherit;font-weight:700;cursor:pointer;
+  }
+  .desktop-header-menu-panel button:hover,
+  .desktop-header-menu-panel button:focus-visible{
+    color:var(--accent);background:var(--surface2);outline:none;
+  }
+  .desktop-header-menu-label{
+    padding:7px 10px 5px;color:var(--muted);font-size:10px;font-weight:900;
+    letter-spacing:.1em;text-transform:uppercase;
+  }
+  .desktop-header-menu-divider{border-top:1px solid var(--line);margin-top:6px;padding-top:11px}
+}
+@media (min-width:1051px) and (max-width:1370px){
+  .topbar{gap:10px}
+  .topnav{gap:6px}
+  .topnav>.nav-btn{padding:10px 11px}
+  .top-actions{gap:6px}
+}
