@@ -4,6 +4,8 @@
 
 <!-- AUTO-CHANGELOG:START -->
 ### 2026-10-08 (MYT)
+- **09:22** · **Fixed** — fix(viewer): automatically exclude non-library Komikku backup entries ([`4f7582e`](https://github.com/Lanzkila/Komikku-Viewers/commit/4f7582e4da44e26e1ed9a590fd7c0b36ed98c2ba)) <!-- commit:4f7582e4da44e26e1ed9a590fd7c0b36ed98c2ba -->
+- **09:05** · **Docs** — docs(changelog): auto-update commit history \[skip ci\] ([`0d68917`](https://github.com/Lanzkila/Komikku-Viewers/commit/0d689170d45a7b285f68706cfb3daf57b1bdaef7)) <!-- commit:0d689170d45a7b285f68706cfb3daf57b1bdaef7 -->
 - **09:04** · **Maintenance** — chore(changelog): add idempotent MYT commit history generator ([`ccfa8d3`](https://github.com/Lanzkila/Komikku-Viewers/commit/ccfa8d3060f1bc6a538b3d7912dfc58970e59a79)) <!-- commit:ccfa8d3060f1bc6a538b3d7912dfc58970e59a79 -->
 - **09:04** · **Docs** — docs: refresh Komikku Viewer README with v1.6 guide, credits and changelog ([`5b7098f`](https://github.com/Lanzkila/Komikku-Viewers/commit/5b7098f2055287c2844ad70b196e250738d8b567)) <!-- commit:5b7098f2055287c2844ad70b196e250738d8b567 -->
 - **09:04** · **CI** — ci: run auto changelog on main pushes ([`291c080`](https://github.com/Lanzkila/Komikku-Viewers/commit/291c080efb087116a65fddea8281a5e9a7b27d85)) <!-- commit:291c080efb087116a65fddea8281a5e9a7b27d85 -->
