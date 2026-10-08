@@ -9,7 +9,7 @@
     read: 'all',
     viewMode: 'grid',
     cardSize: 'medium',
-    pageSize: 30,
+    pageSize: 36,
     performanceMode: 'auto',
     autoLock: 0,
     presets: [],
@@ -35,7 +35,7 @@
     categoryIdMap: new Map(),
     filtered: [],
     page: 1,
-    pageSize: 30,
+    pageSize: 36,
     debug: [],
     schemaCache: new Map(),
     loadedFlavor: null,
@@ -164,7 +164,9 @@
   function applySavedSettings() {
     if (!(state.settings.theme in THEMES)) state.settings.theme = state.settings.theme === 'light' ? 'light' : 'night';
     updateThemeUi();
-    state.pageSize = Number(state.settings.pageSize) || 30;
+    state.pageSize = Number(state.settings.pageSize) || 36;
+    // Migrate the former 30-card default so returning visitors see complete 9-column rows.
+    if (state.pageSize === 30) state.pageSize = 36;
     if ($('#sort-select')) $('#sort-select').value = state.settings.sort || 'title';
     if ($('#status-filter')) $('#status-filter').value = state.settings.status || 'all';
     if ($('#read-filter')) $('#read-filter').value = state.settings.read || 'all';
@@ -533,6 +535,7 @@
       return `<article class="manga-card"><button class="quick-preview-btn" type="button" data-quick-preview="${idx}" aria-label="Quick preview">•••</button><button class="card-hit" data-manga-index="${idx}"><div class="cover">${coverHtml(m)}<span class="badge">${unreadCount(m)} unread</span></div><div class="manga-card-body"><div class="manga-title">${esc(displayTitle(m))}</div><div class="manga-sub"><span>${esc(displayStatus(m))}</span><span>${read}/${total}</span></div><div class="progress"><i style="width:${pct}%"></i></div></div></button></article>`;
     }).join('');
     $('#empty-library').classList.toggle('hidden', pageItems.length > 0);
+    requestAnimationFrame(updateScrollJumpControls);
     const pages = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
     $('#library-meta').textContent = `${state.filtered.length.toLocaleString()} of ${state.data.backupManga.length.toLocaleString()} manga${state.data._autoCleanHidden ? ` · ${state.data._autoCleanHidden.toLocaleString()} history-only hidden` : ''}`;
     $('#page-label').textContent = `Page ${state.page} / ${pages}`;
@@ -1153,7 +1156,7 @@
   async function installApp(){if(state.installPrompt){state.installPrompt.prompt();await state.installPrompt.userChoice;state.installPrompt=null;return;}toast('Use browser “Add to Home screen” if install is not offered.');}
   function registerPwa(){
     if('serviceWorker'in navigator){
-      navigator.serviceWorker.register('./sw.js?v=168',{updateViaCache:'none'})
+      navigator.serviceWorker.register('./sw.js?v=169',{updateViaCache:'none'})
         .then(reg=>reg.update())
         .catch(e=>log(`Service worker: ${e.message}`));
     }
@@ -1613,10 +1616,16 @@
 
   function updateScrollJumpControls(){
     const top=$('#scroll-page-top'),bottom=$('#scroll-page-bottom');if(!top||!bottom)return;
-    const y=window.scrollY||document.documentElement.scrollTop||0;
-    const max=Math.max(0,document.documentElement.scrollHeight-window.innerHeight);
-    top.disabled=y<80;
-    bottom.disabled=max-y<80;
+    const root=document.scrollingElement||document.documentElement;
+    const viewport=root.clientHeight||window.innerHeight;
+    const max=Math.max(0,root.scrollHeight-viewport);
+    const y=Math.max(0,root.scrollTop||window.scrollY||0);
+    // Only disable at the actual document boundary (allow a small rounding tolerance).
+    const atTop=y<=3, atBottom=max<=3||y>=max-3;
+    top.disabled=atTop;
+    bottom.disabled=atBottom;
+    top.setAttribute('aria-disabled',String(atTop));
+    bottom.setAttribute('aria-disabled',String(atBottom));
   }
   function scrollPageTop(){window.scrollTo({top:0,behavior:state.settings.reducedMotion?'auto':'smooth'});}
   function scrollPageBottom(){window.scrollTo({top:document.documentElement.scrollHeight,behavior:state.settings.reducedMotion?'auto':'smooth'});}
@@ -1630,7 +1639,7 @@
 
     let searchTimer; $('#search-input').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>applyFilters(true),document.body.classList.contains('performance-mode')?260:120);});
     ['category-filter','status-filter','read-filter','sort-select'].forEach(id=>$(`#${id}`).addEventListener('change',()=>{if(id==='sort-select')saveSettings({sort:$('#sort-select').value});if(id==='status-filter')saveSettings({status:$('#status-filter').value});if(id==='read-filter')saveSettings({read:$('#read-filter').value});applyFilters(true);}));
-    $('#view-mode-select').addEventListener('change',()=>{saveSettings({viewMode:$('#view-mode-select').value});renderLibrary();}); $('#card-size-select').addEventListener('change',()=>{saveSettings({cardSize:$('#card-size-select').value});renderLibrary();}); $('#page-size-select').addEventListener('change',()=>{state.pageSize=Number($('#page-size-select').value)||30;saveSettings({pageSize:state.pageSize});applyFilters(true);});
+    $('#view-mode-select').addEventListener('change',()=>{saveSettings({viewMode:$('#view-mode-select').value});renderLibrary();}); $('#card-size-select').addEventListener('change',()=>{saveSettings({cardSize:$('#card-size-select').value});renderLibrary();}); $('#page-size-select').addEventListener('change',()=>{state.pageSize=Number($('#page-size-select').value)||36;saveSettings({pageSize:state.pageSize});applyFilters(true);});
     $('#quick-chips').addEventListener('click',e=>{const btn=e.target.closest('[data-quick]');if(!btn)return;const q=btn.dataset.quick;if(q==='clear'){state.quickFilter='';$('#search-input').value='';$('#category-filter').value='all';$('#status-filter').value='all';$('#read-filter').value='all';}else state.quickFilter=state.quickFilter===q?'':q;updateQuickChipUi();applyFilters(true);});
     $('#save-search-preset').addEventListener('click',saveSearchPreset); $('#clear-search-presets').addEventListener('click',()=>{saveSettings({presets:[]});renderSearchPresets();});
 
@@ -1645,7 +1654,14 @@
     $('#drawer-backdrop').addEventListener('click',()=>{toggleNotifications(false);closeQuickPreview();});
     $('#delete-filtered-manga').addEventListener('click',deleteFilteredManga);
     $('#delete-all-manga').addEventListener('click',deleteAllManga);
-    $('#scroll-page-top').addEventListener('click',scrollPageTop); $('#scroll-page-bottom').addEventListener('click',scrollPageBottom); window.addEventListener('scroll',updateScrollJumpControls,{passive:true});
+    $('#scroll-page-top').addEventListener('click',scrollPageTop);
+    $('#scroll-page-bottom').addEventListener('click',scrollPageBottom);
+    window.addEventListener('scroll',updateScrollJumpControls,{passive:true});
+    // Filtering, pagination and newly decoded backups can change the document height.
+    if ('ResizeObserver' in window) {
+      const scrollResizeObserver=new ResizeObserver(()=>requestAnimationFrame(updateScrollJumpControls));
+      scrollResizeObserver.observe(document.body);
+    }
     $('#customize-dashboard').addEventListener('click',openDashboardCustomizer); $('#focus-mode-button').addEventListener('click',toggleFocusMode); $('#presentation-mode-button').addEventListener('click',togglePresentationMode); $('#focus-exit').addEventListener('click',toggleFocusMode); $('#presentation-exit').addEventListener('click',togglePresentationMode);
     $('#accent-color-input').addEventListener('input',e=>setAccent(e.target.value)); $('#theme-accent-input').addEventListener('input',e=>setAccent(e.target.value)); $('#reset-accent').addEventListener('click',()=>setAccent('')); $('#surface-style-select').addEventListener('change',e=>setSurface(e.target.value)); $('#theme-surface-select').addEventListener('change',e=>setSurface(e.target.value)); $('#ambient-select').addEventListener('change',e=>setAmbient(e.target.value)); $('#theme-ambient-select').addEventListener('change',e=>setAmbient(e.target.value));
     $('#large-text-toggle').addEventListener('change',e=>{saveSettings({largeText:e.target.checked});applyPremiumSettings();}); $('#high-contrast-toggle').addEventListener('change',e=>{saveSettings({highContrast:e.target.checked});applyPremiumSettings();}); $('#reduced-motion-toggle').addEventListener('change',e=>{saveSettings({reducedMotion:e.target.checked});applyPremiumSettings();}); $('#blur-hidden-toggle').addEventListener('change',e=>{saveSettings({blurOnHidden:e.target.checked});handleVisibilitySecurity();});

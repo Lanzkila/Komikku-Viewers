@@ -901,3 +901,16 @@ body.focus-mode .scroll-jump-controls,body.presentation-mode .scroll-jump-contro
     grid-template-columns:repeat(2,minmax(0,1fr));
   }
 }
+
+/* v169: visibly disable the floating arrows only at the document boundaries. */
+.scroll-jump-btn:disabled,
+.scroll-jump-btn[aria-disabled="true"]{
+  color:var(--muted)!important;
+  background:color-mix(in srgb,var(--surface) 55%,var(--bg))!important;
+  border-color:color-mix(in srgb,var(--line) 68%,var(--bg))!important;
+  opacity:.38!important;
+  box-shadow:none!important;
+  cursor:default!important;
+  pointer-events:none!important;
+  transform:none!important;
+}
