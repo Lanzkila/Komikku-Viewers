@@ -1,5 +1,23 @@
 # Changelog
 
+## Recent commits (automatic)
+
+<!-- AUTO-CHANGELOG:START -->
+### 2026-10-08 (MYT)
+- **09:04** · **Maintenance** — chore(changelog): add idempotent MYT commit history generator ([`ccfa8d3`](https://github.com/Lanzkila/Komikku-Viewers/commit/ccfa8d3060f1bc6a538b3d7912dfc58970e59a79)) <!-- commit:ccfa8d3060f1bc6a538b3d7912dfc58970e59a79 -->
+- **09:04** · **Docs** — docs: refresh Komikku Viewer README with v1.6 guide, credits and changelog ([`5b7098f`](https://github.com/Lanzkila/Komikku-Viewers/commit/5b7098f2055287c2844ad70b196e250738d8b567)) <!-- commit:5b7098f2055287c2844ad70b196e250738d8b567 -->
+- **09:04** · **CI** — ci: run auto changelog on main pushes ([`291c080`](https://github.com/Lanzkila/Komikku-Viewers/commit/291c080efb087116a65fddea8281a5e9a7b27d85)) <!-- commit:291c080efb087116a65fddea8281a5e9a7b27d85 -->
+- **09:01** · **Fixed** — fix(pwa): invalidate cache for corrected desktop actions menu ([`d99251f`](https://github.com/Lanzkila/Komikku-Viewers/commit/d99251fb32b8250f813944ef47e36e455b5204dc)) <!-- commit:d99251fb32b8250f813944ef47e36e455b5204dc -->
+- **09:01** · **Fixed** — fix(ui): move actual desktop header controls into hamburger, not nav duplicates ([`cd6dbe3`](https://github.com/Lanzkila/Komikku-Viewers/commit/cd6dbe3d34b9089accff0e8b41565f468fef03b8)) <!-- commit:cd6dbe3d34b9089accff0e8b41565f468fef03b8 -->
+- **09:01** · **Style** — style(ui): display real header action buttons as desktop hamburger rows ([`4432027`](https://github.com/Lanzkila/Komikku-Viewers/commit/4432027e6598dfa3dbe4c5e4839853ac7f4d1eea)) <!-- commit:4432027e6598dfa3dbe4c5e4839853ac7f4d1eea -->
+- **09:01** · **Fixed** — fix(ui): replace desktop hamburger nav duplicates with real header controls ([`2b5138f`](https://github.com/Lanzkila/Komikku-Viewers/commit/2b5138fd89b4b512d8de8e1354ed96ae2e1345a0)) <!-- commit:2b5138fd89b4b512d8de8e1354ed96ae2e1345a0 -->
+- **08:58** · **Added** — feat(ui): add accessible desktop hamburger quick menu behavior ([`aba488d`](https://github.com/Lanzkila/Komikku-Viewers/commit/aba488da768f36095805c99701707a69f5f0e43c)) <!-- commit:aba488da768f36095805c99701707a69f5f0e43c -->
+- **08:58** · **Style** — style: align desktop hamburger and responsive quick menu ([`8dec954`](https://github.com/Lanzkila/Komikku-Viewers/commit/8dec9547017f296f7bd20a0fde78f631bf636a61)) <!-- commit:8dec9547017f296f7bd20a0fde78f631bf636a61 -->
+- **08:58** · **Added** — feat(ui): place desktop hamburger immediately after Tools ([`7ee73b1`](https://github.com/Lanzkila/Komikku-Viewers/commit/7ee73b19b8e294c8766a1900dceb19d49189f7f0)) <!-- commit:7ee73b19b8e294c8766a1900dceb19d49189f7f0 -->
+- **08:58** · **Fixed** — fix(pwa): refresh cached assets for desktop header hamburger ([`62636e4`](https://github.com/Lanzkila/Komikku-Viewers/commit/62636e496f87afff0fc09f1286db76c7c37d1a0c)) <!-- commit:62636e496f87afff0fc09f1286db76c7c37d1a0c -->
+<!-- AUTO-CHANGELOG:END -->
+
+
 ## [1.6.0] - 2026-09-05
 
 ### Added
