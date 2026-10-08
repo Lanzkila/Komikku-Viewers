@@ -12,7 +12,7 @@
   <link rel="manifest" href="./manifest.webmanifest?v=157">
   <link rel="icon" href="./assets/icons/app-icon.svg" type="image/svg+xml">
   <title>Kirin Backup Viewer</title>
-  <link rel="stylesheet" href="./assets/css/app.css?v=159">
+  <link rel="stylesheet" href="./assets/css/app.css?v=165">
   <script defer src="https://cdn.jsdelivr.net/npm/long@5.2.3/umd/index.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/protobufjs@7.5.4/dist/protobuf.min.js"></script>
   <script defer src="./assets/vendor/pako.min.js"></script>
@@ -384,8 +384,11 @@
 
   <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-backdrop" data-close-modal></div>
-    <article class="modal-card">
-      <button class="modal-close modal-x-btn" data-close-modal aria-label="Close"><span class="notification-x-glyph modal-x-glyph" aria-hidden="true">×</span></button>
+    <article class="modal-card manga-info-modal">
+      <div class="manga-modal-toolbar">
+        <span class="manga-modal-kicker">Manga information</span>
+        <button class="modal-close modal-x-btn" type="button" data-close-modal aria-label="Close manga information" title="Close manga information"><span class="notification-x-glyph modal-x-glyph" aria-hidden="true">×</span></button>
+      </div>
       <div id="modal-content"></div>
     </article>
   </div>
