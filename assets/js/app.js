@@ -534,7 +534,7 @@
     }).join('');
     $('#empty-library').classList.toggle('hidden', pageItems.length > 0);
     const pages = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
-    $('#library-meta').textContent = `${state.filtered.length.toLocaleString()} of ${state.data.backupManga.length.toLocaleString()} manga`;
+    $('#library-meta').textContent = `${state.filtered.length.toLocaleString()} of ${state.data.backupManga.length.toLocaleString()} manga${state.data._autoCleanHidden ? ` · ${state.data._autoCleanHidden.toLocaleString()} history-only hidden` : ''}`;
     $('#page-label').textContent = `Page ${state.page} / ${pages}`;
     $('#prev-page').disabled = state.page <= 1;
     $('#next-page').disabled = state.page >= pages;
@@ -1153,7 +1153,7 @@
   async function installApp(){if(state.installPrompt){state.installPrompt.prompt();await state.installPrompt.userChoice;state.installPrompt=null;return;}toast('Use browser “Add to Home screen” if install is not offered.');}
   function registerPwa(){
     if('serviceWorker'in navigator){
-      navigator.serviceWorker.register('./sw.js?v=157',{updateViaCache:'none'})
+      navigator.serviceWorker.register('./sw.js?v=164',{updateViaCache:'none'})
         .then(reg=>reg.update())
         .catch(e=>log(`Service worker: ${e.message}`));
     }
