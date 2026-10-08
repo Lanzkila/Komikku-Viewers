@@ -1,0 +1,53 @@
+name: Auto Changelog
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - CHANGELOG.md
+  workflow_dispatch:
+    inputs:
+      lookback_days:
+        description: 'How many days of commit history to import (1–365)'
+        required: false
+        default: '30'
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-changelog-main
+  cancel-in-progress: false
+
+jobs:
+  update-changelog:
+    name: Update CHANGELOG.md
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout complete commit history
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Generate changelog from new commits
+        env:
+          LOOKBACK_DAYS: ${{ inputs.lookback_days || '30' }}
+        run: |
+          python3 scripts/update_changelog.py
+
+      - name: Commit changelog only when changed
+        run: |
+          if git diff --quiet -- CHANGELOG.md; then
+            echo "No changes to CHANGELOG.md"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "docs(changelog): auto-update commit history [skip ci]"
+          git push origin HEAD:main
