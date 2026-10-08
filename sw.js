@@ -1,5 +1,5 @@
-const CACHE='kirin-backup-v165';
-const BASE_JS='./assets/js/app.js?v=164';
+const CACHE='kirin-backup-v166';
+const BASE_JS='./assets/js/app.js?v=166';
 const BASE_CSS='./assets/css/app.css?v=165';
 const SUITE_JS='./assets/js/suite-v160.js?v=164';
 const SUITE_CSS='./assets/css/suite-v160.css';
