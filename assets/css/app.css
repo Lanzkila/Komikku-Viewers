@@ -500,3 +500,35 @@ body.focus-mode .scroll-jump-controls,body.presentation-mode .scroll-jump-contro
   .topnav>.nav-btn{padding:10px 11px}
   .top-actions{gap:6px}
 }
+
+
+/* Desktop header hamburger v1.5.8: actual top-right controls, not navigation copies.
+   All <=1050px rules and the existing mobile hamburger remain unchanged. */
+@media (min-width:1051px){
+  .desktop-header-menu-panel{width:252px}
+  .desktop-header-menu-items{display:grid;gap:5px}
+  .desktop-header-menu-items > button{
+    display:flex!important;align-items:center!important;justify-content:flex-start!important;
+    width:100%!important;min-height:42px!important;height:auto!important;
+    padding:10px 12px!important;flex:none!important;
+    border:0!important;border-radius:10px!important;
+    color:var(--text)!important;background:transparent!important;
+    text-align:left!important;font-size:13px!important;line-height:1.3!important;
+    box-shadow:none!important;white-space:nowrap;
+  }
+  .desktop-header-menu-items > button:hover,
+  .desktop-header-menu-items > button:focus-visible{
+    background:var(--surface2)!important;color:var(--accent)!important;outline:none;
+  }
+  .desktop-header-menu-items > button::after{margin-left:2px;font-size:12px;font-weight:700}
+  .desktop-header-menu-items #kvx-launch::after{content:"Intelligence suite"}
+  .desktop-header-menu-items #command-palette-button::after{content:"Command palette"}
+  .desktop-header-menu-items #notification-button::after{content:"Notifications"}
+  .desktop-header-menu-items #theme-toggle::after{content:"Appearance"}
+  .desktop-header-menu-items #version-badge::after{content:"What's new"}
+  .desktop-header-menu-items #new-backup::before{
+    content:"⇧";display:inline-block;width:18px;flex:none;text-align:center;font-size:17px;
+  }
+  .desktop-header-menu-items #version-badge span{margin-left:0}
+  .desktop-header-menu-items .kvx-suite-badge{margin-left:0}
+}
